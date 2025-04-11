@@ -17,8 +17,8 @@ const Logo: React.FC<LogoProps> = ({
     <div className={className}>
       <Building2 className={iconClassName} />
       <span className={textClassName}>
-        <span className="text-civic-blue">Civic</span>
-        <span className="text-civic-green">Pulse</span>
+        <span className="text-civic-blue">Municipal Corporation</span>
+        <span className="text-civic-green"> of India</span>
       </span>
     </div>
   );

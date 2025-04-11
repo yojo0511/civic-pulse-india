@@ -10,9 +10,10 @@ import {
   DialogDescription, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger 
+  DialogTrigger,
+  DialogFooter 
 } from '@/components/ui/dialog';
-import { PlusCircle, Search } from 'lucide-react';
+import { PlusCircle, Search, MapPin, Camera, X } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ComplaintForm from '@/components/ComplaintForm';
@@ -32,6 +33,11 @@ const CitizenDashboard: React.FC = () => {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  
+  // New states for geo capture
+  const [isGeoCaptureOpen, setIsGeoCaptureOpen] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
   
   // Redirect if not authenticated or not a citizen
   if (!isAuthenticated || user?.role !== 'citizen') {
@@ -111,14 +117,58 @@ const CitizenDashboard: React.FC = () => {
     return filteredComplaints.filter(complaint => complaint.status === status);
   };
   
+  // Geo Capture functions
+  const openGeoCapture = () => {
+    setIsGeoCaptureOpen(true);
+    // Try to get current location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCurrentLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+          toast({
+            title: "Location captured",
+            description: `Lat: ${position.coords.latitude.toFixed(4)}, Lng: ${position.coords.longitude.toFixed(4)}`
+          });
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          toast({
+            variant: "destructive",
+            title: "Location error",
+            description: "Could not capture your location. Please check your device permissions."
+          });
+        }
+      );
+    }
+  };
+  
+  const captureImage = () => {
+    // In a real app, we would use the device camera
+    // For demo, we'll just use a placeholder image
+    setCapturedImage('/placeholder.svg');
+    toast({
+      title: "Image captured",
+      description: "Your image has been captured with geographic information embedded."
+    });
+  };
+  
+  const handleCreateWithGeoCapture = () => {
+    setIsGeoCaptureOpen(false);
+    setIsFormDialogOpen(true);
+    // This would pass the geo data to the form in a real implementation
+  };
+  
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       
-      <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+      <main className="flex-grow container mx-auto px-4 py-8 bg-gray-50">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 p-6 bg-white rounded-lg shadow-sm">
           <div>
-            <h1 className="text-3xl font-bold">Citizen Dashboard</h1>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-civic-blue to-civic-green bg-clip-text text-transparent">Citizen Dashboard</h1>
             <p className="text-muted-foreground">Track and manage your reported issues</p>
           </div>
           
@@ -133,9 +183,14 @@ const CitizenDashboard: React.FC = () => {
               />
             </div>
             
+            <Button className="bg-civic-green hover:bg-civic-green/90" onClick={openGeoCapture}>
+              <MapPin className="h-4 w-4 mr-2" />
+              Geo Capture
+            </Button>
+            
             <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-civic-green hover:bg-civic-green/90">
+                <Button className="bg-civic-blue hover:bg-civic-blue/90">
                   <PlusCircle className="h-4 w-4 mr-2" />
                   New Complaint
                 </Button>
@@ -154,7 +209,7 @@ const CitizenDashboard: React.FC = () => {
         </div>
         
         <Tabs defaultValue="all" className="w-full">
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 p-1 bg-white rounded-lg">
             <TabsTrigger value="all">All Complaints</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
             <TabsTrigger value="in-progress">In Progress</TabsTrigger>
@@ -164,11 +219,11 @@ const CitizenDashboard: React.FC = () => {
           {['all', 'pending', 'in-progress', 'completed'].map((tab) => (
             <TabsContent key={tab} value={tab} className="mt-0">
               {isLoading ? (
-                <div className="text-center py-12">
+                <div className="text-center py-12 bg-white rounded-lg shadow-sm">
                   <p>Loading complaints...</p>
                 </div>
               ) : getFilteredComplaintsByStatus(tab as any).length === 0 ? (
-                <div className="text-center py-12 bg-muted/30 rounded-lg">
+                <div className="text-center py-12 bg-white rounded-lg shadow-sm">
                   <h3 className="text-lg font-medium mb-2">No complaints found</h3>
                   <p className="text-muted-foreground mb-4">
                     {searchQuery
@@ -178,6 +233,7 @@ const CitizenDashboard: React.FC = () => {
                   <Button 
                     variant="outline"
                     onClick={() => setIsFormDialogOpen(true)}
+                    className="bg-gradient-to-r from-civic-blue to-civic-green text-white hover:from-civic-blue/90 hover:to-civic-green/90"
                   >
                     <PlusCircle className="h-4 w-4 mr-2" />
                     Report an Issue
@@ -200,6 +256,80 @@ const CitizenDashboard: React.FC = () => {
       </main>
       
       <Footer />
+      
+      {/* Geo Capture Dialog */}
+      <Dialog open={isGeoCaptureOpen} onOpenChange={setIsGeoCaptureOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Geo Capture Camera</DialogTitle>
+            <DialogDescription>
+              Capture an image with location data for your complaint
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex flex-col items-center justify-center gap-4">
+            <div className="w-full h-64 bg-gray-100 rounded-lg relative overflow-hidden flex items-center justify-center">
+              {capturedImage ? (
+                <>
+                  <img 
+                    src={capturedImage} 
+                    alt="Captured" 
+                    className="w-full h-full object-cover" 
+                  />
+                  <button 
+                    className="absolute top-2 right-2 bg-white rounded-full p-1"
+                    onClick={() => setCapturedImage(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  {currentLocation && (
+                    <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-md flex items-center">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      <span>
+                        {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
+                      </span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <Camera className="h-16 w-16 text-muted-foreground mb-2" />
+                  <p className="text-muted-foreground text-sm">Camera preview</p>
+                </div>
+              )}
+            </div>
+            
+            {!capturedImage ? (
+              <Button onClick={captureImage} className="w-full">
+                <Camera className="h-4 w-4 mr-2" />
+                Capture Image
+              </Button>
+            ) : (
+              <div className="flex gap-2 w-full">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setCapturedImage(null)} 
+                  className="flex-1"
+                >
+                  Retake
+                </Button>
+                <Button 
+                  onClick={handleCreateWithGeoCapture} 
+                  className="flex-1 bg-civic-green hover:bg-civic-green/90"
+                >
+                  Use Image
+                </Button>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsGeoCaptureOpen(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {/* Complaint Details Dialog */}
       <ComplaintDetails

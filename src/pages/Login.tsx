@@ -18,12 +18,12 @@ const Login: React.FC = () => {
     <div className="flex flex-col min-h-screen">
       <Header />
       
-      <main className="flex-grow flex items-center justify-center">
-        <div className="w-full max-w-md mx-auto p-6">
+      <main className="flex-grow flex items-center justify-center bg-gradient-to-br from-civic-blue/10 to-civic-green/10">
+        <div className="w-full max-w-md mx-auto p-8 bg-white rounded-xl shadow-lg border border-gray-200">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">Welcome to CivicPulse</h1>
+            <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-civic-blue to-civic-green bg-clip-text text-transparent">Welcome</h1>
             <p className="text-muted-foreground">
-              Sign in to report issues and track their resolution
+              Sign in to report issues and track their resolution with the Municipal Corporation of India
             </p>
           </div>
           

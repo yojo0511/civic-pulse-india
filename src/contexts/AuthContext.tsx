@@ -8,9 +8,11 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string, role: 'citizen' | 'municipal') => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  login: (nameOrCode: string, password: string, role: 'citizen' | 'municipal') => Promise<void>;
+  register: (name: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUserMobile: (mobileNumber: string) => Promise<void>;
+  isMobileVerified: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,28 +20,31 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMobileVerified, setIsMobileVerified] = useState(false);
   
   useEffect(() => {
     // Check if user is stored in localStorage
     const storedUser = getStoredUser();
     if (storedUser) {
       setUser(storedUser);
+      setIsMobileVerified(!!storedUser.mobileNumber);
     }
     setIsLoading(false);
   }, []);
   
-  const login = async (emailOrCode: string, password: string, role: 'citizen' | 'municipal') => {
+  const login = async (nameOrCode: string, password: string, role: 'citizen' | 'municipal') => {
     setIsLoading(true);
     try {
       let loggedInUser: User;
       
       if (role === 'citizen') {
-        loggedInUser = await citizenLogin(emailOrCode, password);
+        loggedInUser = await citizenLogin(nameOrCode, password);
       } else {
-        loggedInUser = await municipalLogin(emailOrCode, password);
+        loggedInUser = await municipalLogin(nameOrCode, password);
       }
       
       setUser(loggedInUser);
+      setIsMobileVerified(!!loggedInUser.mobileNumber);
       storeUser(loggedInUser);
       toast({
         title: "Login successful",
@@ -58,11 +63,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
   
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (name: string, password: string) => {
     setIsLoading(true);
     try {
-      const registeredUser = await citizenRegister(name, email, password);
+      const registeredUser = await citizenRegister(name, password);
       setUser(registeredUser);
+      setIsMobileVerified(false);
       storeUser(registeredUser);
       toast({
         title: "Registration successful",
@@ -81,8 +87,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
   
+  const updateUserMobile = async (mobileNumber: string): Promise<void> => {
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Simulate API call to update mobile number
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const updatedUser = {
+          ...user,
+          mobileNumber
+        };
+        
+        setUser(updatedUser);
+        setIsMobileVerified(true);
+        storeUser(updatedUser);
+        resolve();
+      }, 1000);
+    });
+  };
+  
   const logout = () => {
     setUser(null);
+    setIsMobileVerified(false);
     clearStoredUser();
     toast({
       title: "Logged out successfully",
@@ -96,7 +124,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isLoading,
       login,
       register,
-      logout
+      logout,
+      updateUserMobile,
+      isMobileVerified
     }}>
       {children}
     </AuthContext.Provider>

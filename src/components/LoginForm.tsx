@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Mail, User } from 'lucide-react';
+import { Building2, Phone, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -14,12 +14,11 @@ const LoginForm: React.FC = () => {
   const navigate = useNavigate();
   
   // Citizen login form state
-  const [citizenEmail, setCitizenEmail] = useState('');
+  const [citizenName, setCitizenName] = useState('');
   const [citizenPassword, setCitizenPassword] = useState('');
   
   // Citizen register form state
   const [registerName, setRegisterName] = useState('');
-  const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   
   // Municipal login form state
@@ -31,8 +30,8 @@ const LoginForm: React.FC = () => {
     setIsLoading(true);
     
     try {
-      await login(citizenEmail, citizenPassword, 'citizen');
-      navigate('/citizen-dashboard');
+      await login(citizenName, citizenPassword, 'citizen');
+      navigate('/mobile-verification');
     } catch (error) {
       console.error('Login failed:', error);
     } finally {
@@ -45,8 +44,8 @@ const LoginForm: React.FC = () => {
     setIsLoading(true);
     
     try {
-      await register(registerName, registerEmail, registerPassword);
-      navigate('/citizen-dashboard');
+      await register(registerName, registerPassword);
+      navigate('/mobile-verification');
     } catch (error) {
       console.error('Registration failed:', error);
     } finally {
@@ -92,16 +91,16 @@ const LoginForm: React.FC = () => {
             <TabsContent value="login" className="pt-4">
               <form onSubmit={handleCitizenLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="citizen-email">Email</Label>
+                  <Label htmlFor="citizen-name">Your Name</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      id="citizen-email"
-                      type="email"
-                      placeholder="your.email@example.com"
+                      id="citizen-name"
+                      type="text"
+                      placeholder="John Doe"
                       className="pl-10"
-                      value={citizenEmail}
-                      onChange={(e) => setCitizenEmail(e.target.value)}
+                      value={citizenName}
+                      onChange={(e) => setCitizenName(e.target.value)}
                       required
                     />
                   </div>
@@ -141,22 +140,7 @@ const LoginForm: React.FC = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="register-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="register-email"
-                      type="email"
-                      placeholder="your.email@example.com"
-                      className="pl-10"
-                      value={registerEmail}
-                      onChange={(e) => setRegisterEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="register-password">Password</Label>
+                  <Label htmlFor="register-password">New Password</Label>
                   <Input
                     id="register-password"
                     type="password"

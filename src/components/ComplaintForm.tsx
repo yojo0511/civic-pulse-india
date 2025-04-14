@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,17 +8,10 @@ import { toast } from '@/hooks/use-toast';
 import { Camera, MapPin, Upload, X } from 'lucide-react';
 import { createComplaint } from '@/lib/complaint-service';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import GeoCaptureDialog from './GeoCaptureDialog';
 
 const ComplaintForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
-  const { user } = useAuth();
+  const { user, isMobileVerified } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -28,11 +21,7 @@ const ComplaintForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
   
   // Geo capture states
   const [isGeoCaptureOpen, setIsGeoCaptureOpen] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   
   const handleLocationDetect = () => {
     if (navigator.geolocation) {
@@ -95,126 +84,33 @@ const ComplaintForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
     }
   };
   
-  const openGeoCapture = async () => {
-    setIsGeoCaptureOpen(true);
-    
-    // Try to get current location
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setCurrentLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-          toast({
-            title: "Location captured",
-            description: `Location: ${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`
-          });
-        },
-        (error) => {
-          console.error('Geolocation error:', error);
-          toast({
-            variant: "destructive",
-            title: "Location error",
-            description: "Could not capture your location. Please check your device permissions."
-          });
-        }
-      );
-    }
-    
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: true,
-        audio: false
-      });
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setCameraStream(stream);
-      }
-    } catch (err) {
-      console.error("Camera access error:", err);
+  const openGeoCapture = () => {
+    if (!isMobileVerified) {
       toast({
         variant: "destructive",
-        title: "Camera error",
-        description: "Could not access your camera. Please check your device permissions."
+        title: "Mobile verification required",
+        description: "Please verify your mobile number before using the camera."
       });
+      return;
     }
-  };
-  
-  const closeGeoCapture = () => {
-    // Stop the camera stream
-    if (cameraStream) {
-      cameraStream.getTracks().forEach(track => track.stop());
-      setCameraStream(null);
-    }
-    setCapturedImage(null);
-    setIsGeoCaptureOpen(false);
-  };
-  
-  const captureImage = () => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
     
-    if (video && canvas && video.srcObject) {
-      const context = canvas.getContext('2d');
-      if (context) {
-        // Set canvas dimensions to match video
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        // Draw the current video frame to the canvas
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Add location data as text overlay
-        if (currentLocation) {
-          context.fillStyle = 'rgba(0, 0, 0, 0.5)';
-          context.fillRect(10, canvas.height - 40, 300, 30);
-          context.fillStyle = 'white';
-          context.font = '14px Arial';
-          context.fillText(
-            `Lat: ${currentLocation.lat.toFixed(4)}, Lng: ${currentLocation.lng.toFixed(4)}`,
-            15,
-            canvas.height - 20
-          );
-        }
-        
-        // Get the image data URL
-        const imageDataUrl = canvas.toDataURL('image/jpeg');
-        setCapturedImage(imageDataUrl);
-        
-        toast({
-          title: "Image captured",
-          description: "Your image has been captured with geographic information."
-        });
-      }
-    } else {
-      // Fallback for demo
-      setCapturedImage('/placeholder.svg');
-      toast({
-        title: "Image captured (demo)",
-        description: "This is a demo image with simulated geographic information."
-      });
-    }
+    setIsGeoCaptureOpen(true);
   };
   
-  const useGeoCapturedImage = () => {
-    if (capturedImage) {
-      setImages([...images, capturedImage]);
-      
-      // If we have location data, update the location field
-      if (currentLocation) {
-        const readableLocation = `Location (${currentLocation.lat.toFixed(4)}, ${currentLocation.lng.toFixed(4)})`;
-        setLocation(readableLocation);
-      }
-      
-      closeGeoCapture();
-      
-      toast({
-        title: "Image added",
-        description: "Geo-tagged image has been added to your complaint."
-      });
+  const handleGeoCaptured = (imageUrl: string, location: {lat: number, lng: number} | null) => {
+    setImages([...images, imageUrl]);
+    
+    // If we have location data, update the location field
+    if (location) {
+      const readableLocation = `Location (${location.lat.toFixed(4)}, ${location.lng.toFixed(4)})`;
+      setLocation(readableLocation);
+      setCurrentLocation(location);
     }
+    
+    toast({
+      title: "Image added",
+      description: "Geo-tagged image has been added to your complaint."
+    });
   };
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -334,12 +230,21 @@ const ComplaintForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
               variant="outline" 
               size="sm" 
               onClick={openGeoCapture}
-              className="text-xs flex items-center gap-1 bg-civic-blue/10 hover:bg-civic-blue/20 text-civic-blue border-civic-blue/30"
+              className={`text-xs flex items-center gap-1 ${isMobileVerified 
+                ? "bg-civic-blue/10 hover:bg-civic-blue/20 text-civic-blue border-civic-blue/30" 
+                : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+              disabled={!isMobileVerified}
             >
               <Camera className="h-3 w-3" />
               Geo Capture
             </Button>
           </div>
+          
+          {!isMobileVerified && (
+            <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded-md border border-amber-200">
+              ⚠️ Mobile verification required to use camera features
+            </p>
+          )}
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="border rounded-md p-4 text-center">
@@ -413,94 +318,11 @@ const ComplaintForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
       </form>
 
       {/* Geo Capture Dialog */}
-      <Dialog open={isGeoCaptureOpen} onOpenChange={(open) => !open && closeGeoCapture()}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Geo Capture Camera</DialogTitle>
-            <DialogDescription>
-              Capture an image with location data for your complaint
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="flex flex-col items-center justify-center gap-4">
-            {capturedImage ? (
-              <div className="w-full h-64 bg-gray-100 rounded-lg relative overflow-hidden">
-                <img 
-                  src={capturedImage} 
-                  alt="Captured" 
-                  className="w-full h-full object-contain" 
-                />
-                <button 
-                  className="absolute top-2 right-2 bg-white rounded-full p-1"
-                  onClick={() => setCapturedImage(null)}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-                {currentLocation && (
-                  <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-md flex items-center">
-                    <MapPin className="h-3 w-3 mr-1" />
-                    <span>
-                      {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="w-full h-64 bg-gray-900 rounded-lg relative overflow-hidden">
-                <video 
-                  ref={videoRef} 
-                  autoPlay 
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
-                {currentLocation && (
-                  <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-md flex items-center">
-                    <MapPin className="h-3 w-3 mr-1" />
-                    <span>
-                      {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {/* Hidden canvas for processing the image */}
-            <canvas ref={canvasRef} className="hidden" />
-            
-            {!capturedImage ? (
-              <Button 
-                onClick={captureImage} 
-                className="w-full bg-civic-green hover:bg-civic-green/90"
-              >
-                <Camera className="h-4 w-4 mr-2" />
-                Capture Image
-              </Button>
-            ) : (
-              <div className="flex gap-2 w-full">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setCapturedImage(null)} 
-                  className="flex-1"
-                >
-                  Retake
-                </Button>
-                <Button 
-                  onClick={useGeoCapturedImage} 
-                  className="flex-1 bg-civic-green hover:bg-civic-green/90"
-                >
-                  Use Image
-                </Button>
-              </div>
-            )}
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={closeGeoCapture}>
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <GeoCaptureDialog 
+        isOpen={isGeoCaptureOpen} 
+        onClose={() => setIsGeoCaptureOpen(false)} 
+        onCapture={handleGeoCaptured}
+      />
     </>
   );
 };

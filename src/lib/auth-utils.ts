@@ -16,21 +16,20 @@ const municipalUsers = [
 ];
 
 // Mock citizen login
-export const citizenLogin = (email: string, password: string): Promise<User> => {
+export const citizenLogin = (name: string, password: string): Promise<User> => {
   return new Promise((resolve, reject) => {
     // Simulate API call
     setTimeout(() => {
-      // Check if email and password meet minimum criteria
-      if (!email || !password || password.length < 6) {
+      // Check if name and password meet minimum criteria
+      if (!name || !password || password.length < 6) {
         reject(new Error('Invalid credentials'));
         return;
       }
       
-      // For demo, any valid format email/password combo works
+      // For demo, any valid format name/password combo works
       resolve({
         id: Math.random().toString(36).substring(2, 10),
-        name: email.split('@')[0],
-        email,
+        name,
         role: 'citizen'
       });
     }, 800);
@@ -38,12 +37,12 @@ export const citizenLogin = (email: string, password: string): Promise<User> => 
 };
 
 // Mock citizen registration
-export const citizenRegister = (name: string, email: string, password: string): Promise<User> => {
+export const citizenRegister = (name: string, password: string): Promise<User> => {
   return new Promise((resolve, reject) => {
     // Simulate API call
     setTimeout(() => {
       // Validate inputs
-      if (!name || !email || !password || password.length < 6) {
+      if (!name || !password || password.length < 6) {
         reject(new Error('Invalid registration details'));
         return;
       }
@@ -52,7 +51,6 @@ export const citizenRegister = (name: string, email: string, password: string): 
       resolve({
         id: Math.random().toString(36).substring(2, 10),
         name,
-        email,
         role: 'citizen'
       });
     }, 800);
@@ -74,7 +72,6 @@ export const municipalLogin = (code: string, password: string): Promise<User> =>
       resolve({
         id: code,
         name: office.name,
-        email: `${code.toLowerCase()}@municipality.gov.in`,
         role: 'municipal',
         code
       });

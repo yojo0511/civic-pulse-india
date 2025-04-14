@@ -1,13 +1,12 @@
-
 export type UserRole = 'citizen' | 'municipal';
 
 export interface User {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   role: UserRole;
-  // Additional fields for municipal users
   code?: string;
+  mobileNumber?: string;
 }
 
 export interface Complaint {

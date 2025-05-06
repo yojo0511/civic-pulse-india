@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -178,6 +177,26 @@ const MunicipalDashboard: React.FC = () => {
     }
   };
   
+  const handleComplaintUpdate = (updatedComplaint: Complaint) => {
+    // Update complaints in state
+    setComplaints(prev => 
+      prev.map(c => (c.id === updatedComplaint.id ? updatedComplaint : c))
+    );
+    setFilteredComplaints(prev =>
+      prev.map(c => (c.id === updatedComplaint.id ? updatedComplaint : c))
+    );
+    
+    // Update the selected complaint if it's open
+    if (selectedComplaint && selectedComplaint.id === updatedComplaint.id) {
+      setSelectedComplaint(updatedComplaint);
+    }
+
+    toast({
+      title: "Complaint updated",
+      description: "The complaint has been updated with repair images",
+    });
+  };
+  
   const getFilteredComplaintsByStatus = (status: Complaint['status'] | 'all') => {
     if (status === 'all') {
       return filteredComplaints;
@@ -290,6 +309,7 @@ const MunicipalDashboard: React.FC = () => {
         isOpen={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
         onUpdateStatus={handleUpdateComplaintStatus}
+        onComplaintUpdate={handleComplaintUpdate}
       />
     </div>
   );

@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Complaint } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,6 +15,7 @@ import {
   Calendar,
   Clock,
   Image,
+  ImagePlus,
   MapPin,
   MessageSquare,
   User,
@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { getStatusLabel, getStatusColor } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { addRepairImages } from '@/lib/complaint-service';
+import { toast } from '@/hooks/use-toast';
 
 interface ComplaintDetailsProps {
   complaint: Complaint | null;
@@ -33,6 +35,7 @@ interface ComplaintDetailsProps {
     status: Complaint['status'],
     comment?: string
   ) => void;
+  onComplaintUpdate?: (complaint: Complaint) => void;
 }
 
 const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
@@ -40,9 +43,12 @@ const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
   isOpen,
   onClose,
   onUpdateStatus,
+  onComplaintUpdate,
 }) => {
   const { user } = useAuth();
-  const [comment, setComment] = React.useState('');
+  const [comment, setComment] = useState('');
+  const [repairImages, setRepairImages] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   
   if (!complaint) return null;
   
@@ -52,8 +58,58 @@ const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
       setComment('');
     }
   };
+
+  // Handle file selection for repair images
+  const handleRepairImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    setIsUploading(true);
+    
+    // For demonstration purposes, we're using a placeholder image
+    // In a real app, you would upload these files to a server
+    const newImages = Array.from({ length: files.length }, () => '/placeholder.svg');
+    setRepairImages(newImages);
+    setIsUploading(false);
+  };
+
+  // Submit repair images
+  const handleSubmitRepairImages = async () => {
+    if (!repairImages.length || !complaint) return;
+    
+    try {
+      const updatedComplaint = await addRepairImages(
+        complaint.id,
+        repairImages,
+        comment,
+        user?.name
+      );
+      
+      toast({
+        title: "Repair images added",
+        description: "Repair images have been added to the complaint",
+      });
+      
+      setRepairImages([]);
+      setComment('');
+      
+      if (onComplaintUpdate) {
+        onComplaintUpdate(updatedComplaint);
+      }
+    } catch (error) {
+      console.error('Failed to add repair images:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to add repair images. Please try again.",
+      });
+    }
+  };
   
   const canUpdateStatus = user?.role === 'municipal';
+  const canAddRepairImages = user?.role === 'municipal' && (
+    complaint.status === 'in-progress' || complaint.status === 'completed'
+  );
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -103,12 +159,29 @@ const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
             <div className="space-y-2">
               <h4 className="font-medium flex items-center gap-2">
                 <Image className="h-4 w-4" />
-                <span>Images</span>
+                <span>Complaint Images</span>
               </h4>
               <div className="grid grid-cols-3 gap-2">
                 {complaint.images.map((img, idx) => (
                   <div key={`img-${idx}`} className="relative aspect-square rounded overflow-hidden">
                     <img src={img} alt={`Complaint image ${idx + 1}`} className="object-cover w-full h-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Repair Images Display */}
+          {complaint.repairImages && complaint.repairImages.length > 0 && (
+            <div className="space-y-2 bg-green-50 p-4 rounded-lg">
+              <h4 className="font-medium flex items-center gap-2 text-green-800">
+                <Image className="h-4 w-4" />
+                <span>Repair Images</span>
+              </h4>
+              <div className="grid grid-cols-3 gap-2">
+                {complaint.repairImages.map((img, idx) => (
+                  <div key={`repair-img-${idx}`} className="relative aspect-square rounded overflow-hidden">
+                    <img src={img} alt={`Repair image ${idx + 1}`} className="object-cover w-full h-full" />
                   </div>
                 ))}
               </div>
@@ -151,6 +224,63 @@ const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Add Repair Images Section for Municipal Officers */}
+          {canAddRepairImages && (
+            <>
+              <Separator />
+              <div className="space-y-3 bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-800">Add Repair Images</h4>
+                <p className="text-sm text-blue-700">
+                  Upload images showing the repairs that have been completed for this complaint.
+                </p>
+                
+                {repairImages.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    {repairImages.map((img, idx) => (
+                      <div key={`new-img-${idx}`} className="relative aspect-square rounded overflow-hidden border border-blue-300">
+                        <img src={img} alt={`New repair image ${idx + 1}`} className="object-cover w-full h-full" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-2 rounded-md flex items-center gap-2 transition-colors">
+                    <ImagePlus className="h-4 w-4" />
+                    <span>Select Images</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleRepairImageChange}
+                      disabled={isUploading}
+                    />
+                  </label>
+                  <span className="text-sm text-blue-700">
+                    {repairImages.length} images selected
+                  </span>
+                </div>
+                
+                <textarea
+                  className="w-full p-2 border border-blue-300 rounded-md"
+                  rows={2}
+                  placeholder="Add a comment about these repair images..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                ></textarea>
+                
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={handleSubmitRepairImages}
+                  disabled={repairImages.length === 0 || isUploading}
+                >
+                  Submit Repair Images
+                </Button>
+              </div>
+            </>
           )}
 
           {/* Status Update Section for Municipal Officers */}

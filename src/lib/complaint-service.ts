@@ -1,4 +1,3 @@
-
 import { Complaint } from './types';
 
 // Sample complaints data
@@ -144,6 +143,48 @@ export const updateComplaintStatus = (
           id: `cm${Date.now()}`,
           text: comment,
           userId: assignedTo || 'system',
+          userName: commenterName,
+          date: new Date().toISOString().split('T')[0],
+        };
+        
+        updatedComplaint.comments = updatedComplaint.comments || [];
+        updatedComplaint.comments.push(newComment);
+      }
+      
+      complaints[complaintIndex] = updatedComplaint;
+      resolve(updatedComplaint);
+    }, 500);
+  });
+};
+
+// Add repair images to a complaint
+export const addRepairImages = (
+  complaintId: string,
+  images: string[],
+  comment?: string,
+  commenterName?: string
+): Promise<Complaint> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const complaintIndex = complaints.findIndex(c => c.id === complaintId);
+      
+      if (complaintIndex === -1) {
+        reject(new Error('Complaint not found'));
+        return;
+      }
+      
+      const updatedComplaint = { ...complaints[complaintIndex] };
+      
+      // Add repair images
+      updatedComplaint.repairImages = updatedComplaint.repairImages || [];
+      updatedComplaint.repairImages = [...updatedComplaint.repairImages, ...images];
+      
+      // Add a comment about the repair images if provided
+      if (comment && commenterName) {
+        const newComment = {
+          id: `cm${Date.now()}`,
+          text: comment,
+          userId: updatedComplaint.assignedTo || 'system',
           userName: commenterName,
           date: new Date().toISOString().split('T')[0],
         };

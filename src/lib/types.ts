@@ -1,3 +1,4 @@
+
 export type UserRole = 'citizen' | 'municipal';
 
 export interface User {
@@ -21,6 +22,7 @@ export interface Complaint {
   images?: string[];
   videos?: string[];
   assignedTo?: string;
+  repairImages?: string[]; // New field for repair images
   comments?: {
     id: string;
     text: string;

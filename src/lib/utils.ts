@@ -41,24 +41,42 @@ export const getStatusLabel = (status: Complaint['status']) => {
   }
 };
 
-// Simulated reverse geocoding for demo purposes
-// In a real app, this would call a geocoding API like Google Maps, Mapbox, or OpenStreetMap
+// Enhanced reverse geocoding for better address formats
 export const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
   try {
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Generate different sample addresses based on coordinates
-    // This is just for demo - a real app would use actual geocoding
-    if (lat > 0 && lng > 0) {
-      return 'Gandhi Nagar, North East Street, Delhi District';
-    } else if (lat > 0 && lng < 0) {
-      return 'Rajiv Chowk, North West Road, Central District';
-    } else if (lat < 0 && lng > 0) {
-      return 'Patel Road, South East Colony, South District';
-    } else {
-      return 'Nehru Market, South West Area, West District';
-    }
+    // Enhanced address generation with more realistic structure
+    // This is just for demo - a real app would use actual geocoding API
+    
+    // Define some areas based on coordinates
+    const areas = [
+      'Connaught Place', 'Karol Bagh', 'Chandni Chowk', 'Lajpat Nagar', 
+      'Greater Kailash', 'Saket', 'Dwarka', 'Rohini', 'Pitampura'
+    ];
+    
+    const streets = [
+      'Main Road', 'Gandhi Street', 'Nehru Avenue', 'Patel Lane', 
+      'Singh Market', 'Bose Marg', 'Tagore Road', 'Ashoka Lane'
+    ];
+    
+    const districts = [
+      'Central Delhi', 'North Delhi', 'South Delhi', 'East Delhi',
+      'West Delhi', 'New Delhi District', 'North West Delhi'
+    ];
+    
+    // Generate deterministic but seemingly random selections based on coordinates
+    const areaIndex = Math.abs(Math.floor((lat * 10) % areas.length));
+    const streetIndex = Math.abs(Math.floor((lng * 10) % streets.length));
+    const districtIndex = Math.abs(Math.floor(((lat + lng) * 5) % districts.length));
+    
+    const area = areas[areaIndex];
+    const street = streets[streetIndex];
+    const district = districts[districtIndex];
+    
+    // Format the address in a readable way
+    return `${area}, ${street}, ${district}`;
   } catch (error) {
     console.error('Geocoding error:', error);
     return '';

@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Camera, MapPin, RefreshCw, X, Info } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { reverseGeocode } from '@/lib/utils';
 
 interface GeoCaptureDialogProps {
   isOpen: boolean;
@@ -23,93 +24,78 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number, address: string} | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
-  const [addressResult, setAddressResult] = useState<string>('');
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
-  const [cameraError, setCameraError] = useState<string | null>(null);
   
   // Get location and initialize camera when dialog opens
   useEffect(() => {
     if (isOpen) {
       getLocation();
       initializeCamera();
-    } else {
-      // Clean up when dialog closes
-      stopCamera();
+      
+      // Clean up when component unmounts
+      return () => {
+        stopCamera();
+      };
     }
-  }, [isOpen, facingMode]);
+  }, [isOpen]);
   
-  const reverseGeocode = async (lat: number, lng: number) => {
-    setLocationLoading(true);
-    try {
-      // This would be a real API call in production
-      // For demo purposes we're simulating the response with a timeout
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Simulate reverse geocoding response based on coordinates
-      // In a real app, this would call a service like Google Maps, Mapbox, or OpenStreetMap
-      let address = '';
-      
-      // Generate different sample addresses based on quadrants
-      if (lat > 0 && lng > 0) {
-        address = 'Gandhi Nagar, North East Street, Delhi District';
-      } else if (lat > 0 && lng < 0) {
-        address = 'Rajiv Chowk, North West Road, Central District';
-      } else if (lat < 0 && lng > 0) {
-        address = 'Patel Road, South East Colony, South District';
-      } else {
-        address = 'Nehru Market, South West Area, West District';
-      }
-      
-      setAddressResult(address);
-      return address;
-    } catch (error) {
-      console.error('Geocoding error:', error);
+  // Initialize or re-initialize camera when facing mode changes
+  useEffect(() => {
+    if (isOpen) {
+      initializeCamera();
+    }
+  }, [facingMode, isOpen]);
+  
+  const getLocation = async () => {
+    if (!navigator.geolocation) {
       toast({
         variant: "destructive",
-        title: "Address lookup failed",
-        description: "Could not retrieve address information"
+        title: "Geolocation not supported",
+        description: "Your browser doesn't support geolocation."
       });
-      return '';
+      return;
+    }
+    
+    setLocationLoading(true);
+    
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        });
+      });
+      
+      const coords = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        address: ''
+      };
+      
+      // Get human-readable address
+      const address = await reverseGeocode(coords.lat, coords.lng);
+      coords.address = address;
+      
+      setCurrentLocation(coords);
+      
+      toast({
+        title: "Location captured",
+        description: address || `Lat: ${coords.lat.toFixed(4)}, Lng: ${coords.lng.toFixed(4)}`
+      });
+    } catch (error) {
+      console.error('Geolocation error:', error);
+      toast({
+        variant: "destructive",
+        title: "Location error",
+        description: "Could not capture your location. Please check your device permissions."
+      });
     } finally {
       setLocationLoading(false);
-    }
-  };
-  
-  const getLocation = () => {
-    if (navigator.geolocation) {
-      setLocationLoading(true);
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const coords = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            address: ''
-          };
-          
-          // Get human-readable address
-          const address = await reverseGeocode(coords.lat, coords.lng);
-          coords.address = address;
-          
-          setCurrentLocation(coords);
-          toast({
-            title: "Location captured",
-            description: address || `Lat: ${coords.lat.toFixed(4)}, Lng: ${coords.lng.toFixed(4)}`
-          });
-          setLocationLoading(false);
-        },
-        (error) => {
-          console.error('Geolocation error:', error);
-          toast({
-            variant: "destructive",
-            title: "Location error",
-            description: "Could not capture your location. Please check your device permissions."
-          });
-          setLocationLoading(false);
-        }
-      );
     }
   };
   
@@ -123,7 +109,7 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
       
       // Try to get the requested camera
       const constraints = {
-        video: { facingMode: facingMode },
+        video: { facingMode },
         audio: false
       };
       
@@ -131,17 +117,25 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          if (videoRef.current) {
+            videoRef.current.play().catch(err => {
+              console.error("Error playing video:", err);
+              setCameraError("Error starting video stream");
+            });
+          }
+        };
         setCameraStream(stream);
       }
-      setCameraLoading(false);
     } catch (err) {
       console.error("Camera access error:", err);
-      setCameraError(`Could not access ${facingMode === 'user' ? 'front' : 'back'} camera`);
+      setCameraError(`Could not access ${facingMode === 'user' ? 'front' : 'back'} camera. Make sure you've granted camera permissions.`);
       toast({
         variant: "destructive",
         title: "Camera error",
         description: "Could not access your camera. Please check your device permissions."
       });
+    } finally {
       setCameraLoading(false);
     }
   };
@@ -165,16 +159,16 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
       const context = canvas.getContext('2d');
       if (context) {
         // Set canvas dimensions to match video
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        canvas.width = video.videoWidth || 320;
+        canvas.height = video.videoHeight || 240;
         
         // Draw the current video frame to the canvas
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         
         // Add location data as text overlay
         if (currentLocation) {
-          context.fillStyle = 'rgba(0, 0, 0, 0.5)';
-          context.fillRect(10, canvas.height - 60, 300, 50);
+          context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          context.fillRect(10, canvas.height - 70, 300, 60);
           context.fillStyle = 'white';
           context.font = '14px Arial';
           
@@ -183,12 +177,12 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
             context.fillText(
               currentLocation.address,
               15,
-              canvas.height - 40
+              canvas.height - 45
             );
             context.fillText(
               `Lat: ${currentLocation.lat.toFixed(4)}, Lng: ${currentLocation.lng.toFixed(4)}`,
               15,
-              canvas.height - 20
+              canvas.height - 25
             );
           } else {
             context.fillText(
@@ -200,13 +194,23 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
         }
         
         // Get the image data URL
-        const imageDataUrl = canvas.toDataURL('image/jpeg');
-        setCapturedImage(imageDataUrl);
-        
-        toast({
-          title: "Image captured",
-          description: "Your image has been captured with geographic information."
-        });
+        try {
+          const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          setCapturedImage(imageDataUrl);
+          
+          toast({
+            title: "Image captured",
+            description: "Your image has been captured with location information."
+          });
+        } catch (err) {
+          console.error("Error creating data URL:", err);
+          // Fallback for demo
+          setCapturedImage('/placeholder.svg');
+          toast({
+            title: "Image captured (demo)",
+            description: "Using placeholder image due to canvas security restrictions."
+          });
+        }
       }
     } else {
       // Fallback for demo
@@ -219,19 +223,23 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
   };
   
   const useGeoCapturedImage = () => {
-    if (capturedImage) {
+    if (capturedImage && currentLocation) {
       onCapture(capturedImage, currentLocation);
       onClose();
+      stopCamera();
     }
   };
   
   return (
-    <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
-      <DialogContent className="max-w-md bg-gradient-to-b from-white to-blue-50">
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) {
+        stopCamera();
+        onClose();
+      }
+    }}>
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-civic-blue to-civic-green bg-clip-text text-transparent">
-            Geo Capture Camera
-          </DialogTitle>
+          <DialogTitle>Geo Capture Camera</DialogTitle>
           <DialogDescription>
             Capture an image with location data for your complaint
           </DialogDescription>
@@ -243,7 +251,7 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
               <img 
                 src={capturedImage} 
                 alt="Captured" 
-                className="w-full h-full object-contain" 
+                className="w-full h-full object-cover" 
               />
               <button 
                 className="absolute top-2 right-2 bg-white rounded-full p-1"
@@ -266,7 +274,7 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
               )}
             </div>
           ) : (
-            <div className="w-full h-64 bg-gray-900 rounded-lg relative overflow-hidden">
+            <div className="w-full h-64 bg-gray-900 rounded-lg relative overflow-hidden flex items-center justify-center">
               {cameraLoading ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
@@ -289,8 +297,27 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
                   ref={videoRef} 
                   autoPlay 
                   playsInline
+                  muted
                   className="w-full h-full object-cover"
                 />
+              )}
+              
+              {!cameraError && (
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="absolute top-2 right-2 bg-white/80 hover:bg-white"
+                    onClick={switchCamera}
+                    disabled={cameraLoading}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                  
+                  <div className="absolute top-2 left-2 bg-white/80 text-black text-xs px-2 py-1 rounded-md">
+                    {facingMode === 'user' ? 'Front' : 'Back'} Camera
+                  </div>
+                </>
               )}
               
               {currentLocation && !cameraError && (
@@ -306,20 +333,6 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
                   </span>
                 </div>
               )}
-              
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="absolute top-2 right-2 bg-white/80 hover:bg-white"
-                onClick={switchCamera}
-                disabled={cameraLoading || !!cameraError}
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-              
-              <div className="absolute top-2 left-2 bg-white/80 text-black text-xs px-2 py-1 rounded-md">
-                {facingMode === 'user' ? 'Front' : 'Back'} Camera
-              </div>
             </div>
           )}
           
@@ -329,7 +342,7 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
           {!capturedImage ? (
             <Button 
               onClick={captureImage} 
-              className="w-full bg-gradient-to-r from-civic-blue to-civic-green hover:opacity-90"
+              className="w-full"
               disabled={cameraLoading || !!cameraError}
             >
               <Camera className="h-4 w-4 mr-2" />
@@ -346,7 +359,7 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
               </Button>
               <Button 
                 onClick={useGeoCapturedImage} 
-                className="flex-1 bg-gradient-to-r from-civic-blue to-civic-green hover:opacity-90"
+                className="flex-1 bg-civic-green hover:bg-civic-green/90"
               >
                 Use Image
               </Button>
@@ -355,7 +368,10 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
         </div>
         
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={() => {
+            stopCamera();
+            onClose();
+          }}>
             Cancel
           </Button>
         </DialogFooter>

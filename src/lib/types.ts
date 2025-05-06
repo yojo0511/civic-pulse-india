@@ -14,6 +14,9 @@ export interface GeoLocation {
   lat: number;
   lng: number;
   address?: string;
+  area?: string;
+  street?: string;
+  district?: string;
 }
 
 export interface Complaint {

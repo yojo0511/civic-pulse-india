@@ -16,12 +16,28 @@ import { reverseGeocode } from '@/lib/utils';
 interface GeoCaptureDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onCapture: (imageUrl: string, location: {lat: number, lng: number, address: string} | null) => void;
+  onCapture: (imageUrl: string, location: {
+    lat: number, 
+    lng: number, 
+    address: string,
+    area?: string,
+    street?: string,
+    district?: string
+  } | null) => void;
+}
+
+interface LocationDetails {
+  lat: number;
+  lng: number;
+  fullAddress: string;
+  area: string;
+  street: string;
+  district: string;
 }
 
 const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, onCapture }) => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number, address: string} | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<LocationDetails | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -71,21 +87,21 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
         });
       });
       
-      const coords = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-        address: ''
-      };
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
       
-      // Get human-readable address
-      const address = await reverseGeocode(coords.lat, coords.lng);
-      coords.address = address;
+      // Get detailed address information
+      const addressDetails = await reverseGeocode(lat, lng);
       
-      setCurrentLocation(coords);
+      setCurrentLocation({
+        lat,
+        lng,
+        ...addressDetails
+      });
       
       toast({
         title: "Location captured",
-        description: address || `Lat: ${coords.lat.toFixed(4)}, Lng: ${coords.lng.toFixed(4)}`
+        description: addressDetails.fullAddress || `Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`
       });
     } catch (error) {
       console.error('Geolocation error:', error);
@@ -168,29 +184,26 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
         // Add location data as text overlay
         if (currentLocation) {
           context.fillStyle = 'rgba(0, 0, 0, 0.7)';
-          context.fillRect(10, canvas.height - 70, 300, 60);
+          context.fillRect(10, canvas.height - 90, 300, 80);
           context.fillStyle = 'white';
           context.font = '14px Arial';
           
-          // Display address if available, otherwise coordinates
-          if (currentLocation.address) {
-            context.fillText(
-              currentLocation.address,
-              15,
-              canvas.height - 45
-            );
-            context.fillText(
-              `Lat: ${currentLocation.lat.toFixed(4)}, Lng: ${currentLocation.lng.toFixed(4)}`,
-              15,
-              canvas.height - 25
-            );
-          } else {
-            context.fillText(
-              `Lat: ${currentLocation.lat.toFixed(4)}, Lng: ${currentLocation.lng.toFixed(4)}`,
-              15,
-              canvas.height - 30
-            );
-          }
+          // Display detailed address information
+          context.fillText(
+            `Area: ${currentLocation.area}`,
+            15,
+            canvas.height - 65
+          );
+          context.fillText(
+            `Street: ${currentLocation.street}`,
+            15,
+            canvas.height - 45
+          );
+          context.fillText(
+            `District: ${currentLocation.district}`,
+            15,
+            canvas.height - 25
+          );
         }
         
         // Get the image data URL
@@ -224,7 +237,14 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
   
   const useGeoCapturedImage = () => {
     if (capturedImage && currentLocation) {
-      onCapture(capturedImage, currentLocation);
+      onCapture(capturedImage, {
+        lat: currentLocation.lat,
+        lng: currentLocation.lng,
+        address: currentLocation.fullAddress,
+        area: currentLocation.area,
+        street: currentLocation.street,
+        district: currentLocation.district
+      });
       onClose();
       stopCamera();
     }
@@ -260,15 +280,18 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
                 <X className="h-4 w-4" />
               </button>
               {currentLocation && (
-                <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-md flex flex-col">
-                  <div className="flex items-center">
-                    <MapPin className="h-3 w-3 mr-1" />
-                    <span className="font-semibold">
-                      {currentLocation.address || 'Location Captured'}
+                <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-md flex flex-col gap-1 max-w-[90%]">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    <span className="font-semibold truncate">
+                      {currentLocation.area || 'Location Captured'}
                     </span>
                   </div>
-                  <span className="text-xs opacity-75 pl-4">
-                    {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
+                  <span className="text-xs opacity-90 pl-4 truncate">
+                    {currentLocation.street}
+                  </span>
+                  <span className="text-xs opacity-90 pl-4 truncate">
+                    {currentLocation.district}
                   </span>
                 </div>
               )}
@@ -321,16 +344,28 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
               )}
               
               {currentLocation && !cameraError && (
-                <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-md flex flex-col">
-                  <div className="flex items-center">
-                    <MapPin className="h-3 w-3 mr-1" />
-                    <span className="font-semibold">
-                      {locationLoading ? 'Loading address...' : (currentLocation.address || 'Location Captured')}
-                    </span>
-                  </div>
-                  <span className="text-xs opacity-75 pl-4">
-                    {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
-                  </span>
+                <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-md flex flex-col gap-1 max-w-[90%]">
+                  {locationLoading ? (
+                    <div className="flex items-center gap-1">
+                      <div className="animate-spin h-3 w-3 border border-white rounded-full border-t-transparent"></div>
+                      <span>Loading address...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        <span className="font-semibold truncate">
+                          {currentLocation.area || 'Area'}
+                        </span>
+                      </div>
+                      <span className="text-xs opacity-90 pl-4 truncate">
+                        {currentLocation.street || 'Street'}
+                      </span>
+                      <span className="text-xs opacity-90 pl-4 truncate">
+                        {currentLocation.district || 'District'}
+                      </span>
+                    </>
+                  )}
                 </div>
               )}
             </div>

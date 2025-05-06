@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +24,9 @@ const ComplaintForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
     lat: number; 
     lng: number;
     address?: string;
+    area?: string;
+    street?: string;
+    district?: string;
   } | null>(null);
   
   const handleLocationDetect = async () => {
@@ -130,7 +132,14 @@ const ComplaintForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
     setIsGeoCaptureOpen(true);
   };
   
-  const handleGeoCaptured = (imageUrl: string, location: {lat: number, lng: number, address: string} | null) => {
+  const handleGeoCaptured = (imageUrl: string, location: {
+    lat: number, 
+    lng: number, 
+    address: string,
+    area?: string,
+    street?: string,
+    district?: string
+  } | null) => {
     setImages([...images, imageUrl]);
     
     // If we have location data, update the location field
@@ -182,6 +191,14 @@ const ComplaintForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
         userName: user.name,
         images: images.length > 0 ? images : undefined,
         videos: videos.length > 0 ? videos : undefined,
+        geoLocation: currentLocation ? {
+          lat: currentLocation.lat,
+          lng: currentLocation.lng,
+          address: currentLocation.address,
+          area: currentLocation.area,
+          street: currentLocation.street,
+          district: currentLocation.district
+        } : undefined
       });
       
       toast({

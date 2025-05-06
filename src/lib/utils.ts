@@ -1,4 +1,3 @@
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Complaint, GeoLocation } from './types';
@@ -41,8 +40,13 @@ export const getStatusLabel = (status: Complaint['status']) => {
   }
 };
 
-// Enhanced reverse geocoding for better address formats
-export const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+// Enhanced reverse geocoding for better address formats with more detailed structure
+export const reverseGeocode = async (lat: number, lng: number): Promise<{ 
+  fullAddress: string;
+  area: string;
+  street: string;
+  district: string;
+}> => {
   try {
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -76,10 +80,22 @@ export const reverseGeocode = async (lat: number, lng: number): Promise<string> 
     const district = districts[districtIndex];
     
     // Format the address in a readable way
-    return `${area}, ${street}, ${district}`;
+    const fullAddress = `${area}, ${street}, ${district}`;
+    
+    return {
+      fullAddress,
+      area,
+      street,
+      district
+    };
   } catch (error) {
     console.error('Geocoding error:', error);
-    return '';
+    return {
+      fullAddress: '',
+      area: '',
+      street: '',
+      district: ''
+    };
   }
 };
 

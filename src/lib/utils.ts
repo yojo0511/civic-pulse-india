@@ -40,7 +40,7 @@ export const getStatusLabel = (status: Complaint['status']) => {
   }
 };
 
-// Enhanced reverse geocoding for better address formats with more detailed structure
+// Enhanced reverse geocoding that attempts to use actual location data
 export const reverseGeocode = async (lat: number, lng: number): Promise<{ 
   fullAddress: string;
   area: string;
@@ -48,38 +48,40 @@ export const reverseGeocode = async (lat: number, lng: number): Promise<{
   district: string;
 }> => {
   try {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // In a real app, we would use a real geocoding API like Google Maps, Mapbox, etc.
+    // For our demo, we're going to use a more deterministic approach based on the actual coordinates
     
-    // Enhanced address generation with more realistic structure
-    // This is just for demo - a real app would use actual geocoding API
+    // Create a meaningful location name based on the actual coordinates
+    // This makes the location feel more connected to the actual coordinates
+    const latStr = lat.toFixed(4);
+    const lngStr = lng.toFixed(4);
+
+    // Generate location components based on the actual coordinates
+    // These could be customized based on known areas in your target location
+    // This is still a simulation but at least tied to the actual coordinates
     
-    // Define some areas based on coordinates
-    const areas = [
-      'Connaught Place', 'Karol Bagh', 'Chandni Chowk', 'Lajpat Nagar', 
-      'Greater Kailash', 'Saket', 'Dwarka', 'Rohini', 'Pitampura'
-    ];
+    // For demo: Define a more specific approach based on coordinate ranges
+    // This makes the locations predictably tied to latitude/longitude
     
-    const streets = [
-      'Main Road', 'Gandhi Street', 'Nehru Avenue', 'Patel Lane', 
-      'Singh Market', 'Bose Marg', 'Tagore Road', 'Ashoka Lane'
-    ];
+    // Define districts based on lat (north/south)
+    let district = '';
+    if (lat > 28.7) district = 'North Delhi';
+    else if (lat > 28.6) district = 'Central Delhi';
+    else if (lat > 28.5) district = 'South Delhi';
+    else district = 'Extended South Delhi';
     
-    const districts = [
-      'Central Delhi', 'North Delhi', 'South Delhi', 'East Delhi',
-      'West Delhi', 'New Delhi District', 'North West Delhi'
-    ];
+    // Define areas based on lng (east/west)
+    let area = '';
+    if (lng > 77.3) area = 'East Delhi Area';
+    else if (lng > 77.2) area = 'Central Delhi Area';
+    else if (lng > 77.1) area = 'West Delhi Area';
+    else area = 'Extended West Delhi';
     
-    // Generate deterministic but seemingly random selections based on coordinates
-    const areaIndex = Math.abs(Math.floor((lat * 10) % areas.length));
-    const streetIndex = Math.abs(Math.floor((lng * 10) % streets.length));
-    const districtIndex = Math.abs(Math.floor(((lat + lng) * 5) % districts.length));
+    // Define street based on the combination
+    const streetNumber = Math.abs(Math.floor((lat * lng * 1000) % 100));
+    const street = `${streetNumber} Main Street`;
     
-    const area = areas[areaIndex];
-    const street = streets[streetIndex];
-    const district = districts[districtIndex];
-    
-    // Format the address in a readable way
+    // Format the address in a readable way using the actual location data
     const fullAddress = `${area}, ${street}, ${district}`;
     
     return {
@@ -90,11 +92,12 @@ export const reverseGeocode = async (lat: number, lng: number): Promise<{
     };
   } catch (error) {
     console.error('Geocoding error:', error);
+    // Fallback for when geocoding fails
     return {
-      fullAddress: '',
-      area: '',
-      street: '',
-      district: ''
+      fullAddress: `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+      area: `Area near ${lat.toFixed(2)}, ${lng.toFixed(2)}`,
+      street: 'Unknown Street',
+      district: 'Unknown District'
     };
   }
 };

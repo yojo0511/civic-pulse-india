@@ -90,7 +90,9 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
       
-      // Get detailed address information
+      console.log("Actual GPS coordinates:", lat, lng);
+      
+      // Get detailed address information using the actual coordinates
       const addressDetails = await reverseGeocode(lat, lng);
       
       setCurrentLocation({
@@ -378,7 +380,7 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
             <Button 
               onClick={captureImage} 
               className="w-full"
-              disabled={cameraLoading || !!cameraError}
+              disabled={cameraLoading || !!cameraError || !currentLocation}
             >
               <Camera className="h-4 w-4 mr-2" />
               Capture Image

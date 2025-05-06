@@ -21,25 +21,58 @@ const ComplaintForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
   
   // Geo capture states
   const [isGeoCaptureOpen, setIsGeoCaptureOpen] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{ 
+    lat: number; 
+    lng: number;
+    address?: string;
+  } | null>(null);
   
-  const handleLocationDetect = () => {
+  const handleLocationDetect = async () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setCurrentLocation({
+        async (position) => {
+          const coords = {
             lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
+            lng: position.coords.longitude,
+          };
           
-          // Convert coordinates to a readable address (in a real app, this would use reverse geocoding)
-          const readableLocation = `Location (${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)})`;
-          setLocation(readableLocation);
+          setCurrentLocation(coords);
           
-          toast({
-            title: "Location detected",
-            description: `${readableLocation}`
-          });
+          try {
+            // Simulate reverse geocoding (in a real app, call a geocoding API)
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Generate a simulated address based on coordinates
+            let address = '';
+            
+            // Generate different sample addresses based on quadrants
+            if (coords.lat > 0 && coords.lng > 0) {
+              address = 'Gandhi Nagar, North East Street, Delhi District';
+            } else if (coords.lat > 0 && coords.lng < 0) {
+              address = 'Rajiv Chowk, North West Road, Central District';
+            } else if (coords.lat < 0 && coords.lng > 0) {
+              address = 'Patel Road, South East Colony, South District';
+            } else {
+              address = 'Nehru Market, South West Area, West District';
+            }
+            
+            setLocation(address);
+            
+            toast({
+              title: "Location detected",
+              description: address
+            });
+          } catch (error) {
+            console.error("Geocoding error:", error);
+            // Fallback to coordinates if geocoding fails
+            const readableLocation = `Location (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`;
+            setLocation(readableLocation);
+            
+            toast({
+              title: "Location detected",
+              description: `${readableLocation}`
+            });
+          }
         },
         (error) => {
           console.error("Geolocation error:", error);
@@ -97,13 +130,17 @@ const ComplaintForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
     setIsGeoCaptureOpen(true);
   };
   
-  const handleGeoCaptured = (imageUrl: string, location: {lat: number, lng: number} | null) => {
+  const handleGeoCaptured = (imageUrl: string, location: {lat: number, lng: number, address: string} | null) => {
     setImages([...images, imageUrl]);
     
     // If we have location data, update the location field
     if (location) {
-      const readableLocation = `Location (${location.lat.toFixed(4)}, ${location.lng.toFixed(4)})`;
-      setLocation(readableLocation);
+      if (location.address) {
+        setLocation(location.address);
+      } else {
+        const readableLocation = `Location (${location.lat.toFixed(4)}, ${location.lng.toFixed(4)})`;
+        setLocation(readableLocation);
+      }
       setCurrentLocation(location);
     }
     

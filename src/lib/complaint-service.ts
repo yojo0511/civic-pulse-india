@@ -39,6 +39,7 @@ let complaints: Complaint[] = [
     images: ['/placeholder.svg'],
     videos: [],
     assignedTo: 'MO08',
+    repairImages: ['/placeholder.svg'],
     comments: [
       {
         id: 'cm1',
@@ -50,6 +51,13 @@ let complaints: Complaint[] = [
       {
         id: 'cm2',
         text: 'Leakage fixed successfully',
+        userId: 'MO08',
+        userName: 'Office Water Supply',
+        date: '2025-04-08',
+      },
+      {
+        id: 'cm3',
+        text: 'Repair images added showing the fixed pipe',
         userId: 'MO08',
         userName: 'Office Water Supply',
         date: '2025-04-08',
@@ -151,6 +159,12 @@ export const updateComplaintStatus = (
         updatedComplaint.comments.push(newComment);
       }
       
+      // If status is updated to completed, notify the citizen
+      if (status === 'completed' && updatedComplaint.status !== 'completed') {
+        // In a real app, this would trigger a notification to the citizen
+        console.log(`Notification sent to citizen: Your complaint #${complaintId} has been resolved`);
+      }
+      
       complaints[complaintIndex] = updatedComplaint;
       resolve(updatedComplaint);
     }, 500);
@@ -192,6 +206,9 @@ export const addRepairImages = (
         updatedComplaint.comments = updatedComplaint.comments || [];
         updatedComplaint.comments.push(newComment);
       }
+
+      // In a real app, this would trigger a notification to the citizen
+      console.log(`Notification sent to citizen: Repair images added to your complaint #${complaintId}`);
       
       complaints[complaintIndex] = updatedComplaint;
       resolve(updatedComplaint);

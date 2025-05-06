@@ -1,7 +1,7 @@
 
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { Complaint } from './types';
+import { Complaint, GeoLocation } from './types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -39,4 +39,34 @@ export const getStatusLabel = (status: Complaint['status']) => {
     default:
       return status;
   }
+};
+
+// Simulated reverse geocoding for demo purposes
+// In a real app, this would call a geocoding API like Google Maps, Mapbox, or OpenStreetMap
+export const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+  try {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Generate different sample addresses based on coordinates
+    // This is just for demo - a real app would use actual geocoding
+    if (lat > 0 && lng > 0) {
+      return 'Gandhi Nagar, North East Street, Delhi District';
+    } else if (lat > 0 && lng < 0) {
+      return 'Rajiv Chowk, North West Road, Central District';
+    } else if (lat < 0 && lng > 0) {
+      return 'Patel Road, South East Colony, South District';
+    } else {
+      return 'Nehru Market, South West Area, West District';
+    }
+  } catch (error) {
+    console.error('Geocoding error:', error);
+    return '';
+  }
+};
+
+// Format coordinates to human-readable format
+export const formatCoordinates = (location: GeoLocation | undefined): string => {
+  if (!location) return '';
+  return `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
 };

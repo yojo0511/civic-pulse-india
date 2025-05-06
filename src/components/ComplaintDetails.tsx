@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Complaint } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +21,8 @@ import {
   MessageSquare,
   User,
   Video,
+  Check,
+  Info,
 } from 'lucide-react';
 import { getStatusLabel, getStatusColor } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -87,7 +90,7 @@ const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
       
       toast({
         title: "Repair images added",
-        description: "Repair images have been added to the complaint",
+        description: "Repair images have been added to the complaint and citizen has been notified.",
       });
       
       setRepairImages([]);
@@ -110,6 +113,9 @@ const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
   const canAddRepairImages = user?.role === 'municipal' && (
     complaint.status === 'in-progress' || complaint.status === 'completed'
   );
+
+  // Determine if this user is the complaint creator
+  const isComplaintCreator = user?.id === complaint.userId;
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -131,6 +137,63 @@ const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
               <span>{complaint.date}</span>
             </div>
           </div>
+
+          {/* Status Timeline - Shows to citizens */}
+          {isComplaintCreator && (
+            <div className="p-4 bg-slate-50 rounded-lg">
+              <h4 className="font-medium mb-3">Status Timeline</h4>
+              <div className="space-y-2">
+                <div className={`flex items-center gap-2 ${complaint.status !== 'rejected' ? 'text-green-600' : 'text-gray-400'}`}>
+                  <div className={`rounded-full p-1 ${complaint.status !== 'rejected' ? 'bg-green-100' : 'bg-gray-100'}`}>
+                    <Check className="h-3 w-3" />
+                  </div>
+                  <span className="text-sm">Complaint Received</span>
+                </div>
+                
+                <div className={`flex items-center gap-2 ${complaint.status === 'assigned' || complaint.status === 'in-progress' || complaint.status === 'completed' ? 'text-green-600' : 'text-gray-400'}`}>
+                  <div className={`rounded-full p-1 ${complaint.status === 'assigned' || complaint.status === 'in-progress' || complaint.status === 'completed' ? 'bg-green-100' : 'bg-gray-100'}`}>
+                    {complaint.status === 'assigned' || complaint.status === 'in-progress' || complaint.status === 'completed' ? (
+                      <Check className="h-3 w-3" />
+                    ) : (
+                      <div className="h-3 w-3" />
+                    )}
+                  </div>
+                  <span className="text-sm">Assigned to Municipality</span>
+                </div>
+                
+                <div className={`flex items-center gap-2 ${complaint.status === 'in-progress' || complaint.status === 'completed' ? 'text-green-600' : 'text-gray-400'}`}>
+                  <div className={`rounded-full p-1 ${complaint.status === 'in-progress' || complaint.status === 'completed' ? 'bg-green-100' : 'bg-gray-100'}`}>
+                    {complaint.status === 'in-progress' || complaint.status === 'completed' ? (
+                      <Check className="h-3 w-3" />
+                    ) : (
+                      <div className="h-3 w-3" />
+                    )}
+                  </div>
+                  <span className="text-sm">Work In Progress</span>
+                </div>
+                
+                <div className={`flex items-center gap-2 ${complaint.status === 'completed' ? 'text-green-600' : 'text-gray-400'}`}>
+                  <div className={`rounded-full p-1 ${complaint.status === 'completed' ? 'bg-green-100' : 'bg-gray-100'}`}>
+                    {complaint.status === 'completed' ? (
+                      <Check className="h-3 w-3" />
+                    ) : (
+                      <div className="h-3 w-3" />
+                    )}
+                  </div>
+                  <span className="text-sm">Resolved</span>
+                </div>
+                
+                {complaint.status === 'rejected' && (
+                  <div className="flex items-center gap-2 text-red-600">
+                    <div className="rounded-full p-1 bg-red-100">
+                      <Info className="h-3 w-3" />
+                    </div>
+                    <span className="text-sm">Complaint Rejected</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <h4 className="font-medium">Description</h4>
@@ -171,16 +234,21 @@ const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
             </div>
           )}
 
-          {/* Repair Images Display */}
+          {/* Repair Images Display with improved UI for citizens */}
           {complaint.repairImages && complaint.repairImages.length > 0 && (
-            <div className="space-y-2 bg-green-50 p-4 rounded-lg">
+            <div className="space-y-2 bg-green-50 p-4 rounded-lg border border-green-200">
               <h4 className="font-medium flex items-center gap-2 text-green-800">
                 <Image className="h-4 w-4" />
                 <span>Repair Images</span>
+                {isComplaintCreator && (
+                  <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">
+                    Added by Municipality
+                  </span>
+                )}
               </h4>
               <div className="grid grid-cols-3 gap-2">
                 {complaint.repairImages.map((img, idx) => (
-                  <div key={`repair-img-${idx}`} className="relative aspect-square rounded overflow-hidden">
+                  <div key={`repair-img-${idx}`} className="relative aspect-square rounded overflow-hidden border border-green-200">
                     <img src={img} alt={`Repair image ${idx + 1}`} className="object-cover w-full h-full" />
                   </div>
                 ))}
@@ -205,16 +273,23 @@ const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
             </div>
           )}
 
-          {/* Comments */}
+          {/* Comments with improved UI */}
           {complaint.comments && complaint.comments.length > 0 && (
             <div className="space-y-2">
               <h4 className="font-medium flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
                 <span>Updates</span>
               </h4>
-              <div className="space-y-3 max-h-40 overflow-y-auto p-1">
+              <div className="space-y-3 max-h-60 overflow-y-auto p-1">
                 {complaint.comments.map((comment) => (
-                  <div key={comment.id} className="bg-muted p-3 rounded">
+                  <div 
+                    key={comment.id} 
+                    className={`p-3 rounded ${
+                      comment.userId === user?.id 
+                        ? 'bg-blue-50 border-l-4 border-blue-400' 
+                        : 'bg-gray-50 border-l-4 border-gray-300'
+                    }`}
+                  >
                     <div className="flex justify-between items-center mb-1">
                       <span className="font-medium text-sm">{comment.userName}</span>
                       <span className="text-xs text-muted-foreground">{comment.date}</span>
@@ -230,10 +305,11 @@ const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
           {canAddRepairImages && (
             <>
               <Separator />
-              <div className="space-y-3 bg-blue-50 p-4 rounded-lg">
+              <div className="space-y-3 bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <h4 className="font-medium text-blue-800">Add Repair Images</h4>
                 <p className="text-sm text-blue-700">
                   Upload images showing the repairs that have been completed for this complaint.
+                  <strong> These will be shared with the citizen who filed the complaint.</strong>
                 </p>
                 
                 {repairImages.length > 0 && (
@@ -267,7 +343,7 @@ const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
                 <textarea
                   className="w-full p-2 border border-blue-300 rounded-md"
                   rows={2}
-                  placeholder="Add a comment about these repair images..."
+                  placeholder="Add a comment about these repair images for the citizen..."
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                 ></textarea>

@@ -10,11 +10,18 @@ export interface User {
   mobileNumber?: string;
 }
 
+export interface GeoLocation {
+  lat: number;
+  lng: number;
+  address?: string;
+}
+
 export interface Complaint {
   id: string;
   title: string;
   description: string;
   location: string;
+  geoLocation?: GeoLocation;
   status: 'pending' | 'assigned' | 'in-progress' | 'completed' | 'rejected';
   date: string;
   userId: string;
@@ -22,7 +29,7 @@ export interface Complaint {
   images?: string[];
   videos?: string[];
   assignedTo?: string;
-  repairImages?: string[]; // New field for repair images
+  repairImages?: string[]; // Images added by municipal officers after repair
   comments?: {
     id: string;
     text: string;

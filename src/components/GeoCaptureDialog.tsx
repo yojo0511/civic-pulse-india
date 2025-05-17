@@ -9,7 +9,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Camera, MapPin, RefreshCw, X, Info } from 'lucide-react';
+import { Camera, MapPin, RefreshCw, X, Info, CameraOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { reverseGeocode } from '@/lib/utils';
 
@@ -42,6 +42,7 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
   const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const [useFallbackMode, setUseFallbackMode] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
@@ -50,21 +51,23 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
   useEffect(() => {
     if (isOpen) {
       getLocation();
-      initializeCamera();
+      if (!useFallbackMode) {
+        initializeCamera();
+      }
       
       // Clean up when component unmounts
       return () => {
         stopCamera();
       };
     }
-  }, [isOpen]);
+  }, [isOpen, useFallbackMode]);
   
   // Initialize or re-initialize camera when facing mode changes
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !useFallbackMode) {
       initializeCamera();
     }
-  }, [facingMode, isOpen]);
+  }, [facingMode, isOpen, useFallbackMode]);
   
   const getLocation = async () => {
     if (!navigator.geolocation) {
@@ -140,6 +143,7 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
             videoRef.current.play().catch(err => {
               console.error("Error playing video:", err);
               setCameraError("Error starting video stream");
+              setUseFallbackMode(true);
             });
           }
         };
@@ -148,10 +152,11 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
     } catch (err) {
       console.error("Camera access error:", err);
       setCameraError(`Could not access ${facingMode === 'user' ? 'front' : 'back'} camera. Make sure you've granted camera permissions.`);
+      setUseFallbackMode(true);
       toast({
         variant: "destructive",
         title: "Camera error",
-        description: "Could not access your camera. Please check your device permissions."
+        description: "Could not access your camera. Using fallback mode."
       });
     } finally {
       setCameraLoading(false);
@@ -166,10 +171,22 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
   };
   
   const switchCamera = () => {
+    if (useFallbackMode) return;
     setFacingMode(prevMode => prevMode === 'user' ? 'environment' : 'user');
   };
   
   const captureImage = () => {
+    if (useFallbackMode) {
+      // In fallback mode, just use a placeholder image
+      setCapturedImage('/placeholder.svg');
+      
+      toast({
+        title: "Image captured (fallback)",
+        description: "Using placeholder image with location data."
+      });
+      return;
+    }
+    
     const video = videoRef.current;
     const canvas = canvasRef.current;
     
@@ -252,6 +269,12 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
     }
   };
   
+  const enableFallbackMode = () => {
+    stopCamera();
+    setUseFallbackMode(true);
+    setCameraError(null);
+  };
+  
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
       if (!open) {
@@ -304,18 +327,44 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
                 </div>
+              ) : useFallbackMode ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-800 text-white p-4 text-center">
+                  <CameraOff className="h-12 w-12 mb-2 text-red-400" />
+                  <p className="font-medium mb-2">Using fallback mode</p>
+                  <p className="text-sm text-gray-300 mb-4">
+                    Camera access is unavailable. You can still capture location data with a placeholder image.
+                  </p>
+                  {!currentLocation && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={getLocation} 
+                      className="mt-2"
+                    >
+                      Get Location
+                    </Button>
+                  )}
+                </div>
               ) : cameraError ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-800 text-white p-4 text-center">
                   <Info className="h-8 w-8 mb-2 text-red-400" />
                   <p>{cameraError}</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={initializeCamera} 
-                    className="mt-4"
-                  >
-                    Try Again
-                  </Button>
+                  <div className="flex flex-col gap-2 mt-4">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={initializeCamera} 
+                    >
+                      Try Again
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={enableFallbackMode}
+                    >
+                      Use Fallback Mode
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <video 
@@ -327,7 +376,7 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
                 />
               )}
               
-              {!cameraError && (
+              {!cameraError && !useFallbackMode && (
                 <>
                   <Button 
                     variant="outline" 
@@ -345,7 +394,7 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
                 </>
               )}
               
-              {currentLocation && !cameraError && (
+              {currentLocation && (
                 <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-md flex flex-col gap-1 max-w-[90%]">
                   {locationLoading ? (
                     <div className="flex items-center gap-1">
@@ -380,10 +429,10 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
             <Button 
               onClick={captureImage} 
               className="w-full"
-              disabled={cameraLoading || !!cameraError || !currentLocation}
+              disabled={cameraLoading || (!useFallbackMode && !!cameraError) || !currentLocation}
             >
               <Camera className="h-4 w-4 mr-2" />
-              Capture Image
+              {useFallbackMode ? "Use Placeholder Image" : "Capture Image"}
             </Button>
           ) : (
             <div className="flex gap-2 w-full">

@@ -47,6 +47,13 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   
+  // Clean up function to stop camera when unmounting
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
+  
   // Get location and initialize camera when dialog opens
   useEffect(() => {
     if (isOpen) {
@@ -54,11 +61,6 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
       if (!useFallbackMode) {
         initializeCamera();
       }
-      
-      // Clean up when component unmounts
-      return () => {
-        stopCamera();
-      };
     }
   }, [isOpen, useFallbackMode]);
   
@@ -93,27 +95,55 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
       
-      console.log("Actual GPS coordinates:", lat, lng);
+      console.log("Location captured:", lat, lng);
       
       // Get detailed address information using the actual coordinates
-      const addressDetails = await reverseGeocode(lat, lng);
-      
-      setCurrentLocation({
-        lat,
-        lng,
-        ...addressDetails
-      });
-      
-      toast({
-        title: "Location captured",
-        description: addressDetails.fullAddress || `Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`
-      });
+      try {
+        const addressDetails = await reverseGeocode(lat, lng);
+        
+        setCurrentLocation({
+          lat,
+          lng,
+          ...addressDetails
+        });
+        
+        toast({
+          title: "Location captured",
+          description: addressDetails.fullAddress || `Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`
+        });
+      } catch (error) {
+        console.error("Geocoding error:", error);
+        // Still set location with coordinates even if geocoding fails
+        setCurrentLocation({
+          lat,
+          lng,
+          fullAddress: `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`,
+          area: 'Unknown Area',
+          street: 'Unknown Street',
+          district: 'Unknown District'
+        });
+        
+        toast({
+          title: "Location captured",
+          description: `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`
+        });
+      }
     } catch (error) {
       console.error('Geolocation error:', error);
       toast({
         variant: "destructive",
         title: "Location error",
         description: "Could not capture your location. Please check your device permissions."
+      });
+      
+      // Use fallback mock location for testing
+      setCurrentLocation({
+        lat: 28.6139,
+        lng: 77.2090,
+        fullAddress: "New Delhi, India (Demo)",
+        area: "New Delhi",
+        street: "Parliament Street",
+        district: "Central District"
       });
     } finally {
       setLocationLoading(false);
@@ -128,9 +158,15 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
       // First stop any existing stream
       stopCamera();
       
+      console.log("Initializing camera with facing mode:", facingMode);
+      
       // Try to get the requested camera
       const constraints = {
-        video: { facingMode },
+        video: { 
+          facingMode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
         audio: false
       };
       
@@ -148,6 +184,7 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
           }
         };
         setCameraStream(stream);
+        console.log("Camera initialized successfully");
       }
     } catch (err) {
       console.error("Camera access error:", err);
@@ -167,18 +204,32 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
     if (cameraStream) {
       cameraStream.getTracks().forEach(track => track.stop());
       setCameraStream(null);
+      console.log("Camera stopped");
+    }
+    
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
   };
   
   const switchCamera = () => {
     if (useFallbackMode) return;
     setFacingMode(prevMode => prevMode === 'user' ? 'environment' : 'user');
+    console.log("Switching camera to:", facingMode === 'user' ? 'environment' : 'user');
   };
   
   const captureImage = () => {
     if (useFallbackMode) {
-      // In fallback mode, just use a placeholder image
-      setCapturedImage('/placeholder.svg');
+      // In fallback mode, use a placeholder image
+      const placeholderImages = [
+        '/placeholder.svg',
+        'https://images.unsplash.com/photo-1649972904349-6e44c42644a7',
+        'https://images.unsplash.com/photo-1518770660439-4636190af475',
+        'https://images.unsplash.com/photo-1500673922987-e212871fec22'
+      ];
+      
+      const randomPlaceholder = placeholderImages[Math.floor(Math.random() * placeholderImages.length)];
+      setCapturedImage(randomPlaceholder);
       
       toast({
         title: "Image captured (fallback)",
@@ -190,12 +241,30 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
     const video = videoRef.current;
     const canvas = canvasRef.current;
     
-    if (video && canvas && video.srcObject) {
-      const context = canvas.getContext('2d');
-      if (context) {
+    if (video && canvas) {
+      try {
+        // Make sure video is playing and ready
+        if (!video.srcObject) {
+          console.error("No video source");
+          setUseFallbackMode(true);
+          captureImage(); // Retry with fallback
+          return;
+        }
+        
+        const context = canvas.getContext('2d');
+        if (!context) {
+          console.error("Could not get canvas context");
+          setUseFallbackMode(true);
+          captureImage(); // Retry with fallback
+          return;
+        }
+        
         // Set canvas dimensions to match video
-        canvas.width = video.videoWidth || 320;
-        canvas.height = video.videoHeight || 240;
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        
+        console.log("Canvas dimensions:", canvas.width, "x", canvas.height);
+        console.log("Video dimensions:", video.videoWidth, "x", video.videoHeight);
         
         // Draw the current video frame to the canvas
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -209,17 +278,17 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
           
           // Display detailed address information
           context.fillText(
-            `Area: ${currentLocation.area}`,
+            `Area: ${currentLocation.area || 'Unknown'}`,
             15,
             canvas.height - 65
           );
           context.fillText(
-            `Street: ${currentLocation.street}`,
+            `Street: ${currentLocation.street || 'Unknown'}`,
             15,
             canvas.height - 45
           );
           context.fillText(
-            `District: ${currentLocation.district}`,
+            `District: ${currentLocation.district || 'Unknown'}`,
             15,
             canvas.height - 25
           );
@@ -229,6 +298,7 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
         try {
           const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
           setCapturedImage(imageDataUrl);
+          console.log("Image captured successfully");
           
           toast({
             title: "Image captured",
@@ -236,21 +306,21 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
           });
         } catch (err) {
           console.error("Error creating data URL:", err);
-          // Fallback for demo
-          setCapturedImage('/placeholder.svg');
-          toast({
-            title: "Image captured (demo)",
-            description: "Using placeholder image due to canvas security restrictions."
-          });
+          // Fallback for security restrictions or other issues
+          setUseFallbackMode(true);
+          captureImage(); // Retry with fallback
         }
+      } catch (err) {
+        console.error("Error capturing image:", err);
+        // Fallback for any other errors
+        setUseFallbackMode(true);
+        captureImage(); // Retry with fallback
       }
     } else {
-      // Fallback for demo
-      setCapturedImage('/placeholder.svg');
-      toast({
-        title: "Image captured (demo)",
-        description: "This is a demo image with simulated geographic information."
-      });
+      console.error("Missing video or canvas ref");
+      // Fallback for missing refs
+      setUseFallbackMode(true);
+      captureImage(); // Retry with fallback
     }
   };
   
@@ -313,10 +383,10 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
                     </span>
                   </div>
                   <span className="text-xs opacity-90 pl-4 truncate">
-                    {currentLocation.street}
+                    {currentLocation.street || 'Unknown Street'}
                   </span>
                   <span className="text-xs opacity-90 pl-4 truncate">
-                    {currentLocation.district}
+                    {currentLocation.district || 'Unknown District'}
                   </span>
                 </div>
               )}
@@ -406,14 +476,14 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
                       <div className="flex items-center gap-1">
                         <MapPin className="h-3 w-3 shrink-0" />
                         <span className="font-semibold truncate">
-                          {currentLocation.area || 'Area'}
+                          {currentLocation.area || 'Unknown Area'}
                         </span>
                       </div>
                       <span className="text-xs opacity-90 pl-4 truncate">
-                        {currentLocation.street || 'Street'}
+                        {currentLocation.street || 'Unknown Street'}
                       </span>
                       <span className="text-xs opacity-90 pl-4 truncate">
-                        {currentLocation.district || 'District'}
+                        {currentLocation.district || 'Unknown District'}
                       </span>
                     </>
                   )}
@@ -429,7 +499,7 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
             <Button 
               onClick={captureImage} 
               className="w-full"
-              disabled={cameraLoading || (!useFallbackMode && !!cameraError) || !currentLocation}
+              disabled={cameraLoading || (!useFallbackMode && !!cameraError && !currentLocation)}
             >
               <Camera className="h-4 w-4 mr-2" />
               {useFallbackMode ? "Use Placeholder Image" : "Capture Image"}
@@ -453,13 +523,28 @@ const GeoCaptureDialog: React.FC<GeoCaptureDialogProps> = ({ isOpen, onClose, on
           )}
         </div>
         
-        <DialogFooter>
-          <Button variant="outline" onClick={() => {
-            stopCamera();
-            onClose();
-          }}>
+        <DialogFooter className="flex justify-between items-center">
+          <Button 
+            variant="outline" 
+            className="bg-red-50 hover:bg-red-100 border-red-200 text-red-700" 
+            onClick={() => {
+              stopCamera();
+              onClose();
+            }}
+          >
             Cancel
           </Button>
+          
+          {!capturedImage && !useFallbackMode && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={enableFallbackMode}
+              className="text-xs"
+            >
+              Having issues? Use fallback mode
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -4,10 +4,13 @@ import { Complaint } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, Image, MapPin, Video } from 'lucide-react';
+import StatusTimeline from './StatusTimeline';
 
 interface ComplaintCardProps {
   complaint: Complaint;
   onView?: (complaint: Complaint) => void;
+  showStatusBadge?: boolean;
+  showStatusTimeline?: boolean;
 }
 
 const getStatusColor = (status: Complaint['status']) => {
@@ -44,14 +47,16 @@ const getStatusLabel = (status: Complaint['status']) => {
   }
 };
 
-const ComplaintCard: React.FC<ComplaintCardProps> = ({ complaint, onView }) => {
+const ComplaintCard: React.FC<ComplaintCardProps> = ({ complaint, onView, showStatusBadge = true, showStatusTimeline = false }) => {
   return (
     <div className="city-card bg-white p-4 flex flex-col h-full">
       <div className="flex justify-between items-start mb-3">
         <h3 className="font-semibold text-lg truncate pr-2">{complaint.title}</h3>
-        <Badge className={getStatusColor(complaint.status)}>
-          {getStatusLabel(complaint.status)}
-        </Badge>
+        {showStatusBadge && (
+          <Badge className={getStatusColor(complaint.status)}>
+            {getStatusLabel(complaint.status)}
+          </Badge>
+        )}
       </div>
       
       <p className="text-muted-foreground line-clamp-2 mb-3">
@@ -81,6 +86,12 @@ const ComplaintCard: React.FC<ComplaintCardProps> = ({ complaint, onView }) => {
         <div className="flex items-center gap-2 mb-2">
           <Video className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">{complaint.videos.length} video(s)</span>
+        </div>
+      )}
+      
+      {showStatusTimeline && (
+        <div className="my-2">
+          <StatusTimeline complaint={complaint} compact={true} />
         </div>
       )}
       

@@ -2,107 +2,169 @@
 import { Complaint } from './types';
 import { reverseGeocode } from './utils';
 
-// Sample complaints data
-let complaints: Complaint[] = [
-  {
-    id: 'c1',
-    title: 'Garbage not collected',
-    description: 'Garbage has not been collected from our street for 3 days',
-    location: 'Gandhi Nagar, Street 5',
-    status: 'pending',
-    date: '2025-04-10',
-    userId: 'u1',
-    userName: 'Amit Kumar',
-    images: ['/placeholder.svg'],
-    videos: [],
-    geoLocation: {
-      lat: 28.65,
-      lng: 77.22,
-      area: 'Gandhi Nagar',
-      street: 'Street 5',
-      district: 'Central Delhi'
-    }
-  },
-  {
-    id: 'c2',
-    title: 'Broken street light',
-    description: 'Street light at the corner is not working for a week',
-    location: 'Nehru Road, Junction 12',
-    status: 'in-progress',
-    date: '2025-04-09',
-    userId: 'u2',
-    userName: 'Priya Sharma',
-    images: ['/placeholder.svg'],
-    videos: [],
-    assignedTo: 'MO07',
-    geoLocation: {
-      lat: 28.55,
-      lng: 77.25,
-      area: 'Nehru Road',
-      street: 'Junction 12',
-      district: 'South Delhi'
-    },
-    comments: [
-      {
-        id: 'cm1',
-        text: 'Complaint has been assigned to the electrical maintenance team',
-        userId: 'MO07',
-        userName: 'Office Electrical',
-        date: '2025-04-09',
+// Sample complaints data - We'll add a lookup by userId to ensure persistence
+const complaintsByUser = new Map<string, Complaint[]>();
+
+// Initialize with some sample complaints
+const initializeComplaints = () => {
+  // Sample complaints for demo users
+  const sampleComplaints = [
+    {
+      id: 'c1',
+      title: 'Garbage not collected',
+      description: 'Garbage has not been collected from our street for 3 days',
+      location: 'Gandhi Nagar, Street 5',
+      status: 'pending',
+      date: '2025-04-10',
+      userId: 'u1',
+      userName: 'Amit Kumar',
+      images: ['/placeholder.svg'],
+      videos: [],
+      geoLocation: {
+        lat: 28.65,
+        lng: 77.22,
+        area: 'Gandhi Nagar',
+        street: 'Street 5',
+        district: 'Central Delhi'
       }
-    ]
-  },
-  {
-    id: 'c3',
-    title: 'Water leakage',
-    description: 'There is water leakage from the main pipe on our road',
-    location: 'Subhash Marg, Near Central Park',
-    status: 'completed',
-    date: '2025-04-08',
-    userId: 'u3',
-    userName: 'Ravi Patel',
-    images: ['/placeholder.svg'],
-    videos: [],
-    assignedTo: 'MO08',
-    repairImages: ['/placeholder.svg'],
-    geoLocation: {
-      lat: 28.60,
-      lng: 77.20,
-      area: 'Subhash Marg',
-      street: 'Central Park Road',
-      district: 'Central Delhi'
     },
-    comments: [
-      {
-        id: 'cm1',
-        text: 'Team has been dispatched',
-        userId: 'MO08',
-        userName: 'Office Water Supply',
-        date: '2025-04-08',
+    {
+      id: 'c2',
+      title: 'Broken street light',
+      description: 'Street light at the corner is not working for a week',
+      location: 'Nehru Road, Junction 12',
+      status: 'in-progress',
+      date: '2025-04-09',
+      userId: 'u2',
+      userName: 'Priya Sharma',
+      images: ['/placeholder.svg'],
+      videos: [],
+      assignedTo: 'MO07',
+      geoLocation: {
+        lat: 28.55,
+        lng: 77.25,
+        area: 'Nehru Road',
+        street: 'Junction 12',
+        district: 'South Delhi'
       },
-      {
-        id: 'cm2',
-        text: 'Leakage fixed successfully',
-        userId: 'MO08',
-        userName: 'Office Water Supply',
-        date: '2025-04-08',
+      comments: [
+        {
+          id: 'cm1',
+          text: 'Complaint has been assigned to the electrical maintenance team',
+          userId: 'MO07',
+          userName: 'Office Electrical',
+          date: '2025-04-09',
+        }
+      ]
+    },
+    {
+      id: 'c3',
+      title: 'Water leakage',
+      description: 'There is water leakage from the main pipe on our road',
+      location: 'Subhash Marg, Near Central Park',
+      status: 'completed',
+      date: '2025-04-08',
+      userId: 'u3',
+      userName: 'Ravi Patel',
+      images: ['/placeholder.svg'],
+      videos: [],
+      assignedTo: 'MO08',
+      repairImages: ['/placeholder.svg'],
+      geoLocation: {
+        lat: 28.60,
+        lng: 77.20,
+        area: 'Subhash Marg',
+        street: 'Central Park Road',
+        district: 'Central Delhi'
       },
-      {
-        id: 'cm3',
-        text: 'Repair images added showing the fixed pipe',
-        userId: 'MO08',
-        userName: 'Office Water Supply',
-        date: '2025-04-08',
-      },
-    ],
-  },
-];
+      comments: [
+        {
+          id: 'cm1',
+          text: 'Team has been dispatched',
+          userId: 'MO08',
+          userName: 'Office Water Supply',
+          date: '2025-04-08',
+        },
+        {
+          id: 'cm2',
+          text: 'Leakage fixed successfully',
+          userId: 'MO08',
+          userName: 'Office Water Supply',
+          date: '2025-04-08',
+        },
+        {
+          id: 'cm3',
+          text: 'Repair images added showing the fixed pipe',
+          userId: 'MO08',
+          userName: 'Office Water Supply',
+          date: '2025-04-08',
+        },
+      ],
+    },
+  ];
+
+  // Add sample complaints to the map
+  sampleComplaints.forEach(complaint => {
+    if (!complaintsByUser.has(complaint.userId)) {
+      complaintsByUser.set(complaint.userId, []);
+    }
+    complaintsByUser.get(complaint.userId)?.push(complaint);
+  });
+};
+
+// Initialize complaints on load
+initializeComplaints();
+
+// Check local storage for saved complaints
+const loadSavedComplaints = () => {
+  try {
+    const savedComplaints = localStorage.getItem('civic_complaints');
+    if (savedComplaints) {
+      const parsed = JSON.parse(savedComplaints);
+      complaintsByUser.clear();
+      
+      // Convert from object to Map
+      Object.entries(parsed).forEach(([userId, complaints]) => {
+        complaintsByUser.set(userId, complaints as Complaint[]);
+      });
+      
+      console.log("Loaded saved complaints from local storage");
+    }
+  } catch (error) {
+    console.error("Failed to load complaints from local storage:", error);
+  }
+};
+
+// Save complaints to local storage
+const saveComplaintsToStorage = () => {
+  try {
+    // Convert Map to object for storage
+    const complaintsObj: Record<string, Complaint[]> = {};
+    complaintsByUser.forEach((complaints, userId) => {
+      complaintsObj[userId] = complaints;
+    });
+    
+    localStorage.setItem('civic_complaints', JSON.stringify(complaintsObj));
+    console.log("Saved complaints to local storage");
+  } catch (error) {
+    console.error("Failed to save complaints to local storage:", error);
+  }
+};
+
+// Load complaints from storage on module initialization
+loadSavedComplaints();
 
 // Get all complaints
 export const getAllComplaints = (): Promise<Complaint[]> => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      resolve([...complaints]);
+      // Flatten all complaints from the map
+      const allComplaints: Complaint[] = [];
+      complaintsByUser.forEach(complaints => {
+        allComplaints.push(...complaints);
+      });
+      
+      resolve([...allComplaints]);
     }, 500);
   });
 };
@@ -111,7 +173,8 @@ export const getAllComplaints = (): Promise<Complaint[]> => {
 export const getUserComplaints = (userId: string): Promise<Complaint[]> => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      const userComplaints = complaints.filter(complaint => complaint.userId === userId);
+      // Get complaints for this specific user
+      const userComplaints = complaintsByUser.get(userId) || [];
       resolve([...userComplaints]);
     }, 500);
   });
@@ -122,8 +185,12 @@ export const getMunicipalComplaints = (municipalCode: string): Promise<Complaint
   return new Promise((resolve) => {
     setTimeout(() => {
       // For simplicity, return all complaints for municipal users
-      // In a real app, you'd filter based on area or assignment
-      resolve([...complaints]);
+      const allComplaints: Complaint[] = [];
+      complaintsByUser.forEach(complaints => {
+        allComplaints.push(...complaints);
+      });
+      
+      resolve([...allComplaints]);
     }, 500);
   });
 };
@@ -132,7 +199,13 @@ export const getMunicipalComplaints = (municipalCode: string): Promise<Complaint
 export const getComplaintsByDate = (date: string): Promise<Complaint[]> => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      const dateComplaints = complaints.filter(complaint => complaint.date === date);
+      // Filter all complaints by date
+      const allComplaints: Complaint[] = [];
+      complaintsByUser.forEach(complaints => {
+        allComplaints.push(...complaints);
+      });
+      
+      const dateComplaints = allComplaints.filter(complaint => complaint.date === date);
       resolve([...dateComplaints]);
     }, 500);
   });
@@ -165,15 +238,22 @@ export const createComplaint = async (complaint: Omit<Complaint, 'id' | 'date' |
         }
       }
       
+      // Get all complaints for ID generation
+      const allComplaints: Complaint[] = [];
+      complaintsByUser.forEach(complaints => {
+        allComplaints.push(...complaints);
+      });
+      
+      // Generate a new ID
+      const newId = `c${allComplaints.length + 1}`;
+      
       const newComplaint: Complaint = {
         ...complaint,
-        id: `c${complaints.length + 1}`,
+        id: newId,
         date: new Date().toISOString().split('T')[0],
         status: 'pending',
         geoLocation
       };
-      
-      complaints = [newComplaint, ...complaints];
       
       // Add timestamp for when the complaint was received
       const comments = newComplaint.comments || [];
@@ -185,6 +265,15 @@ export const createComplaint = async (complaint: Omit<Complaint, 'id' | 'date' |
         date: newComplaint.date,
       });
       newComplaint.comments = comments;
+      
+      // Add to the user's complaints
+      if (!complaintsByUser.has(newComplaint.userId)) {
+        complaintsByUser.set(newComplaint.userId, []);
+      }
+      complaintsByUser.get(newComplaint.userId)?.unshift(newComplaint);
+      
+      // Save to local storage
+      saveComplaintsToStorage();
       
       resolve(newComplaint);
     }, 500);
@@ -201,14 +290,26 @@ export const updateComplaintStatus = (
 ): Promise<Complaint> => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
-      const complaintIndex = complaints.findIndex(c => c.id === complaintId);
+      // Find the complaint in all users' lists
+      let updatedComplaint: Complaint | null = null;
+      let foundUserId: string | null = null;
+      let foundIndex: number = -1;
       
-      if (complaintIndex === -1) {
+      complaintsByUser.forEach((complaints, userId) => {
+        const index = complaints.findIndex(c => c.id === complaintId);
+        if (index !== -1) {
+          foundUserId = userId;
+          foundIndex = index;
+        }
+      });
+      
+      if (foundUserId === null || foundIndex === -1) {
         reject(new Error('Complaint not found'));
         return;
       }
       
-      const updatedComplaint = { ...complaints[complaintIndex], status };
+      const userComplaints = complaintsByUser.get(foundUserId) || [];
+      updatedComplaint = { ...userComplaints[foundIndex], status };
       
       if (assignedTo) {
         updatedComplaint.assignedTo = assignedTo;
@@ -248,13 +349,19 @@ export const updateComplaintStatus = (
         updatedComplaint.comments.push(newComment);
       }
       
+      // Update in the map
+      userComplaints[foundIndex] = updatedComplaint;
+      complaintsByUser.set(foundUserId, userComplaints);
+      
+      // Save to local storage
+      saveComplaintsToStorage();
+      
       // If status is updated to completed, notify the citizen
       if (status === 'completed' && updatedComplaint.status !== 'completed') {
         // In a real app, this would trigger a notification to the citizen
         console.log(`Notification sent to citizen: Your complaint #${complaintId} has been resolved`);
       }
       
-      complaints[complaintIndex] = updatedComplaint;
       resolve(updatedComplaint);
     }, 500);
   });
@@ -269,14 +376,26 @@ export const addRepairImages = (
 ): Promise<Complaint> => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
-      const complaintIndex = complaints.findIndex(c => c.id === complaintId);
+      // Find the complaint in all users' lists
+      let updatedComplaint: Complaint | null = null;
+      let foundUserId: string | null = null;
+      let foundIndex: number = -1;
       
-      if (complaintIndex === -1) {
+      complaintsByUser.forEach((complaints, userId) => {
+        const index = complaints.findIndex(c => c.id === complaintId);
+        if (index !== -1) {
+          foundUserId = userId;
+          foundIndex = index;
+        }
+      });
+      
+      if (foundUserId === null || foundIndex === -1) {
         reject(new Error('Complaint not found'));
         return;
       }
       
-      const updatedComplaint = { ...complaints[complaintIndex] };
+      const userComplaints = complaintsByUser.get(foundUserId) || [];
+      updatedComplaint = { ...userComplaints[foundIndex] };
       
       // Add repair images
       updatedComplaint.repairImages = updatedComplaint.repairImages || [];
@@ -300,10 +419,16 @@ export const addRepairImages = (
         updatedComplaint.comments.push(newComment);
       }
 
+      // Update in the map
+      userComplaints[foundIndex] = updatedComplaint;
+      complaintsByUser.set(foundUserId, userComplaints);
+      
+      // Save to local storage
+      saveComplaintsToStorage();
+
       // In a real app, this would trigger a notification to the citizen
       console.log(`Notification sent to citizen: Repair images added to your complaint #${complaintId}`);
       
-      complaints[complaintIndex] = updatedComplaint;
       resolve(updatedComplaint);
     }, 500);
   });
@@ -313,13 +438,25 @@ export const addRepairImages = (
 export const deleteComplaint = (complaintId: string): Promise<boolean> => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
-      const initialLength = complaints.length;
-      complaints = complaints.filter(c => c.id !== complaintId);
+      let deleted = false;
       
-      if (complaints.length === initialLength) {
+      complaintsByUser.forEach((complaints, userId) => {
+        const initialLength = complaints.length;
+        const filteredComplaints = complaints.filter(c => c.id !== complaintId);
+        
+        if (filteredComplaints.length < initialLength) {
+          complaintsByUser.set(userId, filteredComplaints);
+          deleted = true;
+        }
+      });
+      
+      if (!deleted) {
         reject(new Error('Complaint not found'));
         return;
       }
+      
+      // Save to local storage
+      saveComplaintsToStorage();
       
       resolve(true);
     }, 500);

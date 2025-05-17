@@ -13,7 +13,7 @@ import {
   DialogTrigger,
   DialogFooter 
 } from '@/components/ui/dialog';
-import { PlusCircle, Search, MapPin, Camera, X } from 'lucide-react';
+import { PlusCircle, Search, MapPin, Camera, X, Check, Info } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ComplaintForm from '@/components/ComplaintForm';
@@ -23,6 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getUserComplaints } from '@/lib/complaint-service';
 import { Complaint } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
+import { getComplaintStatusTimeline, getStatusLabel, getStatusColor } from '@/lib/utils';
 
 const CitizenDashboard: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -160,6 +161,15 @@ const CitizenDashboard: React.FC = () => {
     setIsFormDialogOpen(true);
     // This would pass the geo data to the form in a real implementation
   };
+
+  // Count complaints by status
+  const countsByStatus = {
+    total: complaints.length,
+    pending: complaints.filter(c => c.status === 'pending').length,
+    inProgress: complaints.filter(c => ['assigned', 'in-progress'].includes(c.status)).length,
+    completed: complaints.filter(c => c.status === 'completed').length,
+    rejected: complaints.filter(c => c.status === 'rejected').length,
+  };
   
   return (
     <div className="flex flex-col min-h-screen">
@@ -207,6 +217,26 @@ const CitizenDashboard: React.FC = () => {
             </Dialog>
           </div>
         </div>
+
+        {/* Status summary cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-gray-500">
+            <div className="text-sm text-gray-500">Total</div>
+            <div className="text-2xl font-bold">{countsByStatus.total}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-yellow-500">
+            <div className="text-sm text-gray-500">Pending</div>
+            <div className="text-2xl font-bold">{countsByStatus.pending}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-purple-500">
+            <div className="text-sm text-gray-500">In Progress</div>
+            <div className="text-2xl font-bold">{countsByStatus.inProgress}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-green-500">
+            <div className="text-sm text-gray-500">Completed</div>
+            <div className="text-2xl font-bold">{countsByStatus.completed}</div>
+          </div>
+        </div>
         
         <Tabs defaultValue="all" className="w-full">
           <TabsList className="mb-6 p-1 bg-white rounded-lg">
@@ -214,12 +244,14 @@ const CitizenDashboard: React.FC = () => {
             <TabsTrigger value="pending">Pending</TabsTrigger>
             <TabsTrigger value="in-progress">In Progress</TabsTrigger>
             <TabsTrigger value="completed">Completed</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
           
-          {['all', 'pending', 'in-progress', 'completed'].map((tab) => (
+          {['all', 'pending', 'in-progress', 'completed', 'rejected'].map((tab) => (
             <TabsContent key={tab} value={tab} className="mt-0">
               {isLoading ? (
                 <div className="text-center py-12 bg-white rounded-lg shadow-sm">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900 mx-auto mb-4"></div>
                   <p>Loading complaints...</p>
                 </div>
               ) : getFilteredComplaintsByStatus(tab as any).length === 0 ? (
@@ -228,7 +260,7 @@ const CitizenDashboard: React.FC = () => {
                   <p className="text-muted-foreground mb-4">
                     {searchQuery
                       ? 'No results match your search criteria'
-                      : 'You have not submitted any complaints yet'}
+                      : `You don't have any ${getStatusLabel(tab as any).toLowerCase()} complaints`}
                   </p>
                   <Button 
                     variant="outline"
@@ -246,6 +278,8 @@ const CitizenDashboard: React.FC = () => {
                       key={complaint.id}
                       complaint={complaint}
                       onView={handleViewComplaint}
+                      showStatusBadge={true} 
+                      showStatusTimeline={true}
                     />
                   ))}
                 </div>
@@ -283,11 +317,16 @@ const CitizenDashboard: React.FC = () => {
                     <X className="h-4 w-4" />
                   </button>
                   {currentLocation && (
-                    <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-md flex items-center">
-                      <MapPin className="h-3 w-3 mr-1" />
-                      <span>
-                        {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
-                      </span>
+                    <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-md flex flex-col gap-1 max-w-[90%]">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        <span>
+                          {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
+                        </span>
+                      </div>
+                      <div className="pl-5 text-xs">
+                        Area, Street, District information will be shown here
+                      </div>
                     </div>
                   )}
                 </>
@@ -300,7 +339,7 @@ const CitizenDashboard: React.FC = () => {
             </div>
             
             {!capturedImage ? (
-              <Button onClick={captureImage} className="w-full">
+              <Button onClick={captureImage} className="w-full" disabled={!currentLocation}>
                 <Camera className="h-4 w-4 mr-2" />
                 Capture Image
               </Button>
@@ -336,6 +375,7 @@ const CitizenDashboard: React.FC = () => {
         complaint={selectedComplaint}
         isOpen={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
+        showStatusTimeline={true}
       />
     </div>
   );

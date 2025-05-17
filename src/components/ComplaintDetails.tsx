@@ -14,20 +14,20 @@ import {
 } from '@/components/ui/dialog';
 import {
   Calendar,
-  Clock,
+  Check,
   Image,
   ImagePlus,
   MapPin,
   MessageSquare,
   User,
   Video,
-  Check,
   Info,
 } from 'lucide-react';
-import { getStatusLabel, getStatusColor } from '@/lib/utils';
+import { getStatusLabel, getStatusColor, formatCoordinates } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { addRepairImages } from '@/lib/complaint-service';
 import { toast } from '@/hooks/use-toast';
+import StatusTimeline from './StatusTimeline';
 
 interface ComplaintDetailsProps {
   complaint: Complaint | null;
@@ -39,6 +39,7 @@ interface ComplaintDetailsProps {
     comment?: string
   ) => void;
   onComplaintUpdate?: (complaint: Complaint) => void;
+  showStatusTimeline?: boolean;
 }
 
 const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
@@ -47,6 +48,7 @@ const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
   onClose,
   onUpdateStatus,
   onComplaintUpdate,
+  showStatusTimeline = false,
 }) => {
   const { user } = useAuth();
   const [comment, setComment] = useState('');
@@ -138,61 +140,9 @@ const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
             </div>
           </div>
 
-          {/* Status Timeline - Shows to citizens */}
-          {isComplaintCreator && (
-            <div className="p-4 bg-slate-50 rounded-lg">
-              <h4 className="font-medium mb-3">Status Timeline</h4>
-              <div className="space-y-2">
-                <div className={`flex items-center gap-2 ${complaint.status !== 'rejected' ? 'text-green-600' : 'text-gray-400'}`}>
-                  <div className={`rounded-full p-1 ${complaint.status !== 'rejected' ? 'bg-green-100' : 'bg-gray-100'}`}>
-                    <Check className="h-3 w-3" />
-                  </div>
-                  <span className="text-sm">Complaint Received</span>
-                </div>
-                
-                <div className={`flex items-center gap-2 ${complaint.status === 'assigned' || complaint.status === 'in-progress' || complaint.status === 'completed' ? 'text-green-600' : 'text-gray-400'}`}>
-                  <div className={`rounded-full p-1 ${complaint.status === 'assigned' || complaint.status === 'in-progress' || complaint.status === 'completed' ? 'bg-green-100' : 'bg-gray-100'}`}>
-                    {complaint.status === 'assigned' || complaint.status === 'in-progress' || complaint.status === 'completed' ? (
-                      <Check className="h-3 w-3" />
-                    ) : (
-                      <div className="h-3 w-3" />
-                    )}
-                  </div>
-                  <span className="text-sm">Assigned to Municipality</span>
-                </div>
-                
-                <div className={`flex items-center gap-2 ${complaint.status === 'in-progress' || complaint.status === 'completed' ? 'text-green-600' : 'text-gray-400'}`}>
-                  <div className={`rounded-full p-1 ${complaint.status === 'in-progress' || complaint.status === 'completed' ? 'bg-green-100' : 'bg-gray-100'}`}>
-                    {complaint.status === 'in-progress' || complaint.status === 'completed' ? (
-                      <Check className="h-3 w-3" />
-                    ) : (
-                      <div className="h-3 w-3" />
-                    )}
-                  </div>
-                  <span className="text-sm">Work In Progress</span>
-                </div>
-                
-                <div className={`flex items-center gap-2 ${complaint.status === 'completed' ? 'text-green-600' : 'text-gray-400'}`}>
-                  <div className={`rounded-full p-1 ${complaint.status === 'completed' ? 'bg-green-100' : 'bg-gray-100'}`}>
-                    {complaint.status === 'completed' ? (
-                      <Check className="h-3 w-3" />
-                    ) : (
-                      <div className="h-3 w-3" />
-                    )}
-                  </div>
-                  <span className="text-sm">Resolved</span>
-                </div>
-                
-                {complaint.status === 'rejected' && (
-                  <div className="flex items-center gap-2 text-red-600">
-                    <div className="rounded-full p-1 bg-red-100">
-                      <Info className="h-3 w-3" />
-                    </div>
-                    <span className="text-sm">Complaint Rejected</span>
-                  </div>
-                )}
-              </div>
-            </div>
+          {/* Status Timeline */}
+          {(showStatusTimeline || isComplaintCreator) && (
+            <StatusTimeline complaint={complaint} />
           )}
 
           <div className="space-y-2">
@@ -200,9 +150,23 @@ const ComplaintDetails: React.FC<ComplaintDetailsProps> = ({
             <p className="text-muted-foreground">{complaint.description}</p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-            <span>{complaint.location}</span>
+          <div className="flex items-start gap-2">
+            <MapPin className="h-4 w-4 text-muted-foreground mt-1" />
+            <div>
+              <div>{complaint.location}</div>
+              {complaint.geoLocation && (
+                <div className="text-xs text-muted-foreground">
+                  Coordinates: {formatCoordinates(complaint.geoLocation)}
+                </div>
+              )}
+              {complaint.geoLocation?.area && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  <span className="font-medium">Area:</span> {complaint.geoLocation.area}<br/>
+                  <span className="font-medium">Street:</span> {complaint.geoLocation.street}<br/>
+                  <span className="font-medium">District:</span> {complaint.geoLocation.district}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

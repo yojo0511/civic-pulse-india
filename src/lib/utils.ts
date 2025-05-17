@@ -1,3 +1,4 @@
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Complaint, GeoLocation } from './types';
@@ -106,4 +107,40 @@ export const reverseGeocode = async (lat: number, lng: number): Promise<{
 export const formatCoordinates = (location: GeoLocation | undefined): string => {
   if (!location) return '';
   return `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
+};
+
+// Get status timeline steps for a complaint
+export const getComplaintStatusTimeline = (complaint: Complaint) => {
+  const steps = [
+    { 
+      label: 'Received',
+      completed: true,
+      date: complaint.date
+    },
+    { 
+      label: 'Assigned',
+      completed: ['assigned', 'in-progress', 'completed'].includes(complaint.status),
+      date: complaint.comments?.find(c => c.text.includes('assigned'))?.date
+    },
+    { 
+      label: 'In Progress',
+      completed: ['in-progress', 'completed'].includes(complaint.status),
+      date: complaint.comments?.find(c => c.text.includes('progress'))?.date
+    },
+    { 
+      label: 'Completed',
+      completed: complaint.status === 'completed',
+      date: complaint.comments?.find(c => c.text.includes('completed'))?.date
+    }
+  ];
+
+  if (complaint.status === 'rejected') {
+    steps.push({
+      label: 'Rejected',
+      completed: true,
+      date: complaint.comments?.find(c => c.text.includes('rejected'))?.date
+    });
+  }
+
+  return steps;
 };

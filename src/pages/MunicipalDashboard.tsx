@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ import {
 } from '@/lib/complaint-service';
 import { Complaint } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
+import { getStatusLabel, getStatusColor } from '@/lib/utils';
 
 const MunicipalDashboard: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -39,6 +41,7 @@ const MunicipalDashboard: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<Complaint['status'] | 'all'>('all');
   
   // Redirect if not authenticated or not a municipal office
   if (!isAuthenticated || user?.role !== 'municipal') {
@@ -154,7 +157,7 @@ const MunicipalDashboard: React.FC = () => {
       
       toast({
         title: "Status updated",
-        description: `Complaint status updated to ${status}`,
+        description: `Complaint status updated to ${getStatusLabel(status)}`,
       });
       
       // If status is completed, also show a thank you message
@@ -202,6 +205,16 @@ const MunicipalDashboard: React.FC = () => {
       return filteredComplaints;
     }
     return filteredComplaints.filter(complaint => complaint.status === status);
+  };
+
+  // Count complaints by status for the dashboard summary
+  const countsByStatus = {
+    total: filteredComplaints.length,
+    pending: filteredComplaints.filter(c => c.status === 'pending').length,
+    assigned: filteredComplaints.filter(c => c.status === 'assigned').length,
+    'in-progress': filteredComplaints.filter(c => c.status === 'in-progress').length,
+    completed: filteredComplaints.filter(c => c.status === 'completed').length,
+    rejected: filteredComplaints.filter(c => c.status === 'rejected').length,
   };
   
   return (
@@ -259,19 +272,50 @@ const MunicipalDashboard: React.FC = () => {
             </Popover>
           </div>
         </div>
+
+        {/* Status summary cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-gray-500">
+            <div className="text-sm text-gray-500">Total</div>
+            <div className="text-2xl font-bold">{countsByStatus.total}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-yellow-500">
+            <div className="text-sm text-gray-500">Pending</div>
+            <div className="text-2xl font-bold">{countsByStatus.pending}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-blue-500">
+            <div className="text-sm text-gray-500">Assigned</div>
+            <div className="text-2xl font-bold">{countsByStatus.assigned}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-purple-500">
+            <div className="text-sm text-gray-500">In Progress</div>
+            <div className="text-2xl font-bold">{countsByStatus['in-progress']}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-green-500">
+            <div className="text-sm text-gray-500">Completed</div>
+            <div className="text-2xl font-bold">{countsByStatus.completed}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-red-500">
+            <div className="text-sm text-gray-500">Rejected</div>
+            <div className="text-2xl font-bold">{countsByStatus.rejected}</div>
+          </div>
+        </div>
         
         <Tabs defaultValue="all" className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="all">All Complaints</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="assigned">Assigned</TabsTrigger>
             <TabsTrigger value="in-progress">In Progress</TabsTrigger>
             <TabsTrigger value="completed">Completed</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
           
-          {['all', 'pending', 'in-progress', 'completed'].map((tab) => (
+          {['all', 'pending', 'assigned', 'in-progress', 'completed', 'rejected'].map((tab) => (
             <TabsContent key={tab} value={tab} className="mt-0">
               {isLoading ? (
                 <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900 mx-auto mb-4"></div>
                   <p>Loading complaints...</p>
                 </div>
               ) : getFilteredComplaintsByStatus(tab as any).length === 0 ? (
@@ -282,7 +326,7 @@ const MunicipalDashboard: React.FC = () => {
                       ? 'No results match your search criteria'
                       : selectedDate
                       ? `No complaints found for ${format(selectedDate, 'PP')}`
-                      : 'There are no complaints in this category'}
+                      : `There are no complaints with status "${getStatusLabel(tab as any)}"`}
                   </p>
                 </div>
               ) : (
@@ -292,6 +336,7 @@ const MunicipalDashboard: React.FC = () => {
                       key={complaint.id}
                       complaint={complaint}
                       onView={handleViewComplaint}
+                      showStatusBadge={true}
                     />
                   ))}
                 </div>

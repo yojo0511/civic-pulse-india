@@ -28,6 +28,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (storedUser) {
       setUser(storedUser);
       setIsMobileVerified(!!storedUser.mobileNumber);
+      
+      // Log the restored session
+      console.log("User session restored from storage:", {
+        id: storedUser.id,
+        name: storedUser.name,
+        role: storedUser.role
+      });
     }
     setIsLoading(false);
   }, []);
@@ -46,6 +53,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(loggedInUser);
       setIsMobileVerified(!!loggedInUser.mobileNumber);
       storeUser(loggedInUser);
+      
+      console.log("User logged in successfully:", {
+        id: loggedInUser.id,
+        name: loggedInUser.name,
+        role: loggedInUser.role
+      });
+      
       toast({
         title: "Login successful",
         description: `Welcome back, ${loggedInUser.name}!`,
@@ -109,6 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   const logout = () => {
+    console.log("Logging out user:", user?.name);
     setUser(null);
     setIsMobileVerified(false);
     clearStoredUser();
